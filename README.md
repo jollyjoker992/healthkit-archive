@@ -3,6 +3,25 @@
 A family-scale, end-to-end encrypted backup of Apple Health (HealthKit) data, ready for FHIR R4 and
 AI health-advisor agents.
 
+## Why
+
+Apple Health collects years of health data on each phone, but keeping it safe is left to the owner:
+the built-in export is a manual, one-off dump. This project backs it up automatically and continuously,
+so a lost phone, a reset or a forgotten export doesn't take the history with it.
+
+It does so without handing the data to anyone. HealthKit exporters commonly send plaintext to a server
+behind a bearer token, which means trusting whoever runs that server. Here the phone encrypts every
+batch, the relay only stores ciphertext, and each person chooses who can decrypt it: no one but the
+owner and the people they delegate to (and Apple, which holds the data in Health in the first place).
+
+The longer aim is a personal health vault that lasts decades: wearable data alongside medical records
+and documents, owned by the person it describes and readable by AI health-advisor agents through FHIR
+R4. Decades of such data could also serve medical research, shared only when and how its owner
+chooses. [garmin-archive](https://github.com/jollyjoker992/garmin-archive) does the same for Garmin
+data, with the same day-folder layout and Medplum setup.
+
+## How it works
+
 ```
 iPhone app ── encrypted + signed batches ──▶ Cloudflare Worker ──▶ R2 (ciphertext) + D1 (index)
    ▲  scans a processor card                      │
