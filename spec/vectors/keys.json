@@ -1,0 +1,54 @@
+{
+  "description": "P-256 test keys, their public keys (SEC1 uncompressed, b64u), ids and fingerprints (processor fingerprints cover sign_pub || age_recipient); age X25519 test identities",
+  "keys": [
+    {
+      "label": "device 1",
+      "private_scalar_hex": "e99409178b0b944c9aba6d8aa12e263c576a1da0b779fb416fed898d725eb019",
+      "pub": "BM0uNgBiE5En5Bt-JpwlMhD35t3uZNVS9E4gWCk_wj7Gsb64_od6Ph85NTr2bjnRBLIP298_c223JYkw_rYESMc",
+      "id": "d_617873e2419bc9642bff5363fc7a4d84",
+      "fingerprint": "6178-73E2-419B-C964-2BFF"
+    },
+    {
+      "label": "device 2",
+      "private_scalar_hex": "6b3a0b2cee3b6f7e5367b77ddc9d732d55efc5fc9773097299757dae386d6d85",
+      "pub": "BFtH9q_J3b79OWN-G6d3tkf4uoRDJ_LGFrONZtjUApOVbMYg7RxQ0mZS3yeCCpiLswuga2dxXzW3_kZwTjHgAQQ",
+      "id": "d_3af4039886b6bd45011e5d0756ee8e1c",
+      "fingerprint": "3AF4-0398-86B6-BD45-011E"
+    },
+    {
+      "label": "processor 1",
+      "private_scalar_hex": "b6408c277ca08f943b9b86baed721fca35fafbd7ec405ae62917a503b1ac711b",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "age_recipient": "age1qmq44yq4k607vstgal5k84wen49fycqaep8m83y34zfv2j5p9a4stz9tvf",
+      "fingerprint": "9E65-ECAB-D100-F513-B5C7"
+    },
+    {
+      "label": "processor 2",
+      "private_scalar_hex": "222f92610b0420bb986c8187132377899de5d2e5491c8d28c8507d2cd32c6fd3",
+      "pub": "BGmBQKeQdhtEaAmJqS_fDqvzil3ol_LZBNPb0rDq_EbBC1SPs9AQLoEPNWSZhV48cBFg-NuV6CHoSqPJf9BX1Fo",
+      "id": "p_ae5616ec72c6a4e234f993bc248371bf",
+      "age_recipient": "age1ws4u0kv64nlw3yqpqpqfvkpys7a5z4sqx2gf9u0yxhknpgv97a8q435gu4",
+      "fingerprint": "397F-622D-B39B-0361-3D71"
+    },
+    {
+      "label": "admin 1",
+      "private_scalar_hex": "49837856bef3faeff5f68bb3c05a28524a7baaf7c9a7d6ca2522114b30c34da6",
+      "pub": "BPqF27SppEBKELjxFOKNwn4n2l40b2-WFzy0s7m6ilhi3f29UI5O3zV2icg3I6JF4NyjziXzZVO59GOK3R8dM6Q",
+      "id": "a_dd31896c81802ea3e9748452588b0d23",
+      "fingerprint": "DD31-896C-8180-2EA3-E974"
+    }
+  ],
+  "age": [
+    {
+      "label": "processor 1",
+      "identity": "AGE-SECRET-KEY-1MCVYQV9YK37G92S9DW3PSQ5FZVAML5M3C3QR42UPTTWA5773888SYZ5ZAU",
+      "recipient": "age1qmq44yq4k607vstgal5k84wen49fycqaep8m83y34zfv2j5p9a4stz9tvf"
+    },
+    {
+      "label": "processor 2",
+      "identity": "AGE-SECRET-KEY-1LZAN7KZGY4HDXWP4UV3EDZP5ZDC5PF00WRTLY7WGG5UHYSR5G7PQDGG4Q8",
+      "recipient": "age1ws4u0kv64nlw3yqpqpqfvkpys7a5z4sqx2gf9u0yxhknpgv97a8q435gu4"
+    }
+  ]
+}

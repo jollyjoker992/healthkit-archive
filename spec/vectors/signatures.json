@@ -1,0 +1,73 @@
+{
+  "description": "Signing input is 'hka-v1/' + purpose + '\\n' + payload; signatures are raw r||s b64u",
+  "pub": "BM0uNgBiE5En5Bt-JpwlMhD35t3uZNVS9E4gWCk_wj7Gsb64_od6Ph85NTr2bjnRBLIP298_c223JYkw_rYESMc",
+  "cases": [
+    {
+      "note": "valid",
+      "purpose": "manifest",
+      "payload": "eyJ2IjoxLCJ0IjoiZXhhbXBsZSJ9",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjw",
+      "valid": true
+    },
+    {
+      "note": "valid high-S form of the same signature",
+      "purpose": "manifest",
+      "payload": "eyJ2IjoxLCJ0IjoiZXhhbXBsZSJ9",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd9MZqFqLnzfprreX3NDI0r3N3NLJvGR7OTzAO8y6kddwg",
+      "valid": true
+    },
+    {
+      "note": "same signature, different purpose",
+      "purpose": "grant",
+      "payload": "eyJ2IjoxLCJ0IjoiZXhhbXBsZSJ9",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjw",
+      "valid": false
+    },
+    {
+      "note": "payload changed by one byte",
+      "purpose": "manifest",
+      "payload": "eyJ2IjoxLCJ0IjoiZXhhbXBsZSJd",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjw",
+      "valid": false
+    },
+    {
+      "note": "signature bit flipped",
+      "purpose": "manifest",
+      "payload": "eyJ2IjoxLCJ0IjoiZXhhbXBsZSJ9",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjg",
+      "valid": false
+    }
+  ],
+  "malformed_signatures": [
+    {
+      "note": "DER encoding instead of raw r||s",
+      "sig": "MEUCICfiPwW6f0K3YEgIXWyK0x0VVPuo9eVQ5vHafRYe7AnfAiEAs5lelNGDIFpFIaCMvNy1CIVzr4a1hbGgALjbkBIbx48"
+    },
+    {
+      "note": "63 bytes",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvH"
+    },
+    {
+      "note": "padded base64url",
+      "sig": "J-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjw=="
+    },
+    {
+      "note": "character outside the base64url alphabet",
+      "sig": "+-I_Bbp_QrdgSAhdbIrTHRVU-6j15VDm8dp9Fh7sCd-zmV6U0YMgWkUhoIy83LUIhXOvhrWFsaAAuNuQEhvHjw"
+    }
+  ],
+  "malformed_public_keys": [
+    {
+      "note": "compressed point (33 bytes)",
+      "pub": "A80uNgBiE5En5Bt-JpwlMhD35t3uZNVS9E4gWCk_wj7G"
+    },
+    {
+      "note": "point not on curve",
+      "pub": "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE"
+    },
+    {
+      "note": "64 bytes, missing 0x04 prefix",
+      "pub": "zS42AGITkSfkG34mnCUyEPfm3e5k1VL0TiBYKT_CPsaxvrj-h3o-Hzk1OvZuOdEEsg_b3z9zbbcliTD-tgRIxw"
+    }
+  ]
+}

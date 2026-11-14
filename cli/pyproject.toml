@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "healthkit-archive"
+version = "0.1.0"
+description = "Processor and admin CLIs for the healthkit-archive relay (see ../spec)"
+requires-python = ">=3.11"
+dependencies = [
+  "cryptography>=44",   # P-256 signatures (deterministic signing needs 44+)
+  "pyrage>=1.4",        # age decryption
+  "segno>=1.6",         # QR codes in the terminal (invites, processor cards)
+]
+
+[project.scripts]
+hka = "hka.cli:main"
+hka-admin = "hka_admin.cli:main"
+
+[tool.setuptools]
+packages = ["hkacommon", "hka", "hka_admin"]

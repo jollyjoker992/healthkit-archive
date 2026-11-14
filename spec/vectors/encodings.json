@@ -1,0 +1,73 @@
+{
+  "description": "b64u decoders must accept 'valid' and reject 'invalid_b64u'; hex decoders must reject 'invalid_hex'",
+  "valid": [
+    {
+      "b64u": "",
+      "hex": ""
+    },
+    {
+      "b64u": "QQ",
+      "hex": "41"
+    },
+    {
+      "b64u": "QUI",
+      "hex": "4142"
+    },
+    {
+      "b64u": "QUJD",
+      "hex": "414243"
+    },
+    {
+      "b64u": "-_8",
+      "hex": "fbff"
+    }
+  ],
+  "invalid_b64u": [
+    {
+      "note": "padding",
+      "input": "QQ=="
+    },
+    {
+      "note": "length 1 mod 4",
+      "input": "QUJDR"
+    },
+    {
+      "note": "non-zero trailing bits",
+      "input": "QR"
+    },
+    {
+      "note": "non-zero trailing bits (3-char group)",
+      "input": "QUJ"
+    },
+    {
+      "note": "standard alphabet '+'",
+      "input": "+_8"
+    },
+    {
+      "note": "standard alphabet '/'",
+      "input": "-/8"
+    },
+    {
+      "note": "whitespace",
+      "input": "QU JD"
+    },
+    {
+      "note": "newline",
+      "input": "QUJD\n"
+    }
+  ],
+  "invalid_hex": [
+    {
+      "note": "uppercase",
+      "input": "ABCD"
+    },
+    {
+      "note": "odd length",
+      "input": "abc"
+    },
+    {
+      "note": "non-hex character",
+      "input": "abcg"
+    }
+  ]
+}

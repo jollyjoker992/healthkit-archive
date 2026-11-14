@@ -1,0 +1,99 @@
+{
+  "description": "Request signatures: payload = METHOD\\nORIGIN\\nTARGET\\nTIMESTAMP\\nhex(sha256(body)). 'invalid' cases reuse the first case's signature with one input changed; the verifier rebuilds the payload from the inputs and MUST reject them.",
+  "server_now": 1794556800,
+  "cases": [
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "GET",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500",
+      "timestamp": 1794556800,
+      "body": "",
+      "payload": "GET\nhttps://hka.example.test\n/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500\n1794556800\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    },
+    {
+      "note": "device reads its state",
+      "key_id": "d_617873e2419bc9642bff5363fc7a4d84",
+      "pub": "BM0uNgBiE5En5Bt-JpwlMhD35t3uZNVS9E4gWCk_wj7Gsb64_od6Ph85NTr2bjnRBLIP298_c223JYkw_rYESMc",
+      "method": "GET",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/state",
+      "timestamp": 1794556800,
+      "body": "",
+      "payload": "GET\nhttps://hka.example.test\n/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/state\n1794556800\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sig": "-eQI5akY_PmJIyzCMWyB3jpJDQQ5oWBqO2qyNAFP9IQYrY5jb6MorJ97gCq4lTcJi9VC8lR86EiKDUXAjtcdEg"
+    },
+    {
+      "note": "admin retires a device",
+      "key_id": "a_dd31896c81802ea3e9748452588b0d23",
+      "pub": "BPqF27SppEBKELjxFOKNwn4n2l40b2-WFzy0s7m6ilhi3f29UI5O3zV2icg3I6JF4NyjziXzZVO59GOK3R8dM6Q",
+      "method": "POST",
+      "origin": "https://hka.example.test",
+      "target": "/v1/admin/devices/d_3af4039886b6bd45011e5d0756ee8e1c/retire",
+      "timestamp": 1794556861,
+      "body": "",
+      "payload": "POST\nhttps://hka.example.test\n/v1/admin/devices/d_3af4039886b6bd45011e5d0756ee8e1c/retire\n1794556861\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sig": "ah2V8OcGamGkamVQBpYIe8Gl9wED-z4gyCbCACqsXWhWeZEsfB2cEvKLREgocE6cXSxywyYdNlif6SUhFTUWVA"
+    }
+  ],
+  "invalid": [
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "GET",
+      "origin": "https://other.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500",
+      "timestamp": 1794556800,
+      "body": "",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    },
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "GET",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=0&limit=500",
+      "timestamp": 1794556800,
+      "body": "",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    },
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "GET",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500",
+      "timestamp": 1794556801,
+      "body": "",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    },
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "GET",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500",
+      "timestamp": 1794556800,
+      "body": "e30",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    },
+    {
+      "note": "processor lists batches",
+      "key_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+      "pub": "BH5UhRZxfkYI1UkaNmH658Fr-4Sej7Kq6NkO7OEKjYzV4oEfChCt648nDTYEgOaimWDYa0Ek2XebR0PC_wwELjI",
+      "method": "POST",
+      "origin": "https://hka.example.test",
+      "target": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/batches?after=41&limit=500",
+      "timestamp": 1794556800,
+      "body": "",
+      "sig": "_n3teeIEQ_k191gcI1dH7RcUZhrNNc0oQtpDeXcmx5R--oFykUX-NxYx8Iz8Crndk0FpPmgFG-MVOYtTPVwOQw"
+    }
+  ]
+}
