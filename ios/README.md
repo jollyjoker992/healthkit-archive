@@ -65,8 +65,10 @@ To see the app in Vietnamese in the Simulator: `xcrun simctl launch <sim> app.hk
 ## On a phone
 
 1. Open `HealthBackup.xcodeproj`, set your team and a bundle identifier you own (`app.hka.healthbackup` is a
-   placeholder), and enable the HealthKit capability with background delivery. A paid Apple Developer
-   membership is assumed; free teams reportedly cannot sign HealthKit.
+   placeholder), and enable the HealthKit capability with background delivery. Apple lists HealthKit as
+   available to free accounts (Personal Team) too
+   ([supported capabilities](https://developer.apple.com/help/account/reference/supported-capabilities-ios));
+   free signing lasts 7 days. Not yet checked: whether a free profile includes background delivery.
 2. Distribute to family phones with ad hoc or TestFlight (see docs/design.md 3.7; TestFlight builds stop
    after 90 days, and the daily heartbeat makes that visible in `hka status`).
 

@@ -68,8 +68,9 @@ proven itself for you.
 
 ## Getting started
 
-You need: a Cloudflare account (Workers, R2, D1), a paid Apple Developer membership (HealthKit apps
-cannot be signed with a free team), a Mac with Xcode to build the app, and a machine for the processor
+You need: a Cloudflare account (Workers, R2, D1), an Apple Account to sign the app (a free account works
+for your own phones, with 7-day signing; the paid Apple Developer Program is needed for TestFlight or
+year-long ad hoc builds; see [ios/README.md](ios/README.md)), a Mac with Xcode to build the app, and a machine for the processor
 with Python 3.11 or later.
 
 1. Deploy the relay ([worker/README.md](worker/README.md)) with the public key from `hka-admin init`.

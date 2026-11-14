@@ -135,7 +135,7 @@ Anchors are not trusted alone. Once a day the app re-sends every sample from the
 - A new or restored phone gets a new device key and re-enrols; it uploads history again as a new device stream. The CLI deduplicates by HealthKit UUID across all of a user's devices.
 
 ### 3.7 Distribution
-The paid Apple Developer Program is assumed (a free team reportedly cannot sign the HealthKit capability). Options for about five family phones:
+Apple's capability table lists HealthKit for free Apple Developer accounts as well as paid ones (developer.apple.com/help/account/reference/supported-capabilities-ios, checked 2026-11-14). A free account signs for 7 days and cannot distribute; whether its profiles include background delivery is **[test]**. Options for about five family phones:
 
 | Option | Expiry | Catch |
 |---|---|---|
@@ -316,7 +316,7 @@ Each phase ends with a short report: rounds run, findings fixed, findings skippe
 - R2: a put with a wrong SHA-256 is rejected; the conditional put refuses an existing key.
 - Worker CPU time for an 8 MB upload on the free plan.
 - iOS: Secure Enclave signing and outbox upload while the phone is locked; custom headers surviving on a background upload task.
-- Whether a free Apple developer team can sign HealthKit and background delivery (five-minute Xcode test), and the real ad hoc profile lifetime.
+- Whether a free Apple Account's profile includes HealthKit background delivery (Apple lists HealthKit itself as supported), whether SideStore keeps the HealthKit entitlements when it re-signs, and the real ad hoc profile lifetime.
 
 ## 10. Known limits accepted
 - Sync is opportunistic: data arrives when the phone is unlocked and iOS allows, typically hours late.
