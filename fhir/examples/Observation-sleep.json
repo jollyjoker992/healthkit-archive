@@ -1,0 +1,151 @@
+{
+ "resourceType": "Observation",
+ "id": "sleep",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "u_example/2026-11-12/sleep"
+  }
+ ],
+ "status": "final",
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "93832-4",
+    "display": "Sleep duration"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKCategoryTypeIdentifierSleepAnalysis"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectivePeriod": {
+  "start": "2026-11-11T22:30:00.000+07:00",
+  "end": "2026-11-12T05:40:00.000+07:00"
+ },
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 400.0,
+  "unit": "min",
+  "system": "http://unitsofmeasure.org",
+  "code": "min"
+ },
+ "component": [
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "93831-6",
+      "display": "Deep sleep duration"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKCategoryTypeIdentifierSleepAnalysis"
+     }
+    ],
+    "text": "asleepDeep"
+   },
+   "valueQuantity": {
+    "value": 70.0,
+    "unit": "min",
+    "system": "http://unitsofmeasure.org",
+    "code": "min"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "93830-8",
+      "display": "Light sleep duration"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKCategoryTypeIdentifierSleepAnalysis"
+     }
+    ],
+    "text": "asleepCore"
+   },
+   "valueQuantity": {
+    "value": 210.0,
+    "unit": "min",
+    "system": "http://unitsofmeasure.org",
+    "code": "min"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "93829-0",
+      "display": "REM sleep duration"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKCategoryTypeIdentifierSleepAnalysis"
+     }
+    ],
+    "text": "asleepREM"
+   },
+   "valueQuantity": {
+    "value": 120.0,
+    "unit": "min",
+    "system": "http://unitsofmeasure.org",
+    "code": "min"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "93828-2",
+      "display": "Nighttime awakening duration"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKCategoryTypeIdentifierSleepAnalysis"
+     }
+    ],
+    "text": "awake"
+   },
+   "valueQuantity": {
+    "value": 10.0,
+    "unit": "min",
+    "system": "http://unitsofmeasure.org",
+    "code": "min"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+      "code": "sleep-in-bed",
+      "display": "Time in bed"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKCategoryTypeIdentifierSleepAnalysis"
+     }
+    ]
+   },
+   "valueQuantity": {
+    "value": 430.0,
+    "unit": "min",
+    "system": "http://unitsofmeasure.org",
+    "code": "min"
+   }
+  }
+ ]
+}

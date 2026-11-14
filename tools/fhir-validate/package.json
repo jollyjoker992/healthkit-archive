@@ -1,6 +1,7 @@
 {
   "name": "healthkit-archive-fhir-validate",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Validates FHIR JSON and NDJSON with the validator of @medplum/core.",
   "dependencies": {

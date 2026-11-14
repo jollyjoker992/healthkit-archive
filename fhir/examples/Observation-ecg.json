@@ -1,0 +1,94 @@
+{
+ "resourceType": "Observation",
+ "id": "ecg",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000801"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "procedure"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKDataTypeIdentifierElectrocardiogram"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectivePeriod": {
+  "start": "2026-11-12T19:00:00.000+07:00",
+  "end": "2026-11-12T19:00:30.000+07:00"
+ },
+ "device": {
+  "reference": "Device/example"
+ },
+ "component": [
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+      "code": "ecg-classification",
+      "display": "ECG classification"
+     }
+    ]
+   },
+   "valueCodeableConcept": {
+    "text": "sinusRhythm"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+      "code": "ecg-lead-i",
+      "display": "ECG voltage, lead I (Apple Watch)"
+     }
+    ]
+   },
+   "valueSampledData": {
+    "origin": {
+     "value": 0,
+     "unit": "uV",
+     "system": "http://unitsofmeasure.org",
+     "code": "uV"
+    },
+    "period": 1.953125,
+    "dimensions": 1,
+    "data": "12.5 40.25 310 -55.5 8 E 4.75"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "8867-4",
+      "display": "Heart rate"
+     }
+    ]
+   },
+   "valueQuantity": {
+    "value": 66,
+    "unit": "/min",
+    "system": "http://unitsofmeasure.org",
+    "code": "/min"
+   }
+  }
+ ]
+}

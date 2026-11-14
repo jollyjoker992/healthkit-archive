@@ -314,6 +314,7 @@ struct HomeView: View {
             }
             .padding(.vertical, 6)
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("backupStatus")
             if case .halted = s.stop {
                 Button("Start Over as a New Device", role: .destructive) { confirmStartOver = true }
             } else if s.currentGrant == nil {
@@ -389,6 +390,7 @@ struct HomeView: View {
                 Text("Fingerprint")
                 Text(verbatim: model.deviceFingerprint ?? "—").font(.callout.monospaced()).foregroundStyle(.secondary)
                     .textSelection(.enabled)
+                    .accessibilityIdentifier("deviceFingerprint")
             }
         } header: {
             Text("This iPhone")

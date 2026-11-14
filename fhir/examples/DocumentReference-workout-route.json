@@ -1,0 +1,34 @@
+{
+ "resourceType": "DocumentReference",
+ "id": "workout-route",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/document",
+   "value": "route/00000000-0000-4000-8000-000000000701"
+  }
+ ],
+ "status": "current",
+ "type": {
+  "text": "Workout route (GPX)"
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "date": "2026-11-12T17:00:00.000+07:00",
+ "content": [
+  {
+   "attachment": {
+    "contentType": "application/gpx+xml",
+    "size": 464,
+    "hash": "h9N9qKh5cfR8Rf7tJZsm8ml02oM=",
+    "title": "00000000-0000-4000-8000-000000000701.gpx",
+    "extension": [
+     {
+      "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/StructureDefinition/archive-path",
+      "valueString": "fhir/binaries/c8b09e2707123f4efa20d2e9dbd7681b2aa606451b123e4aac6867ed04bbf690.gpx"
+     }
+    ]
+   }
+  }
+ ]
+}

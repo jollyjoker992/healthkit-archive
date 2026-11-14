@@ -86,7 +86,7 @@ hka-card:<b64u(card JSON)>
 ```
 
 ```json
-{"v":1,"t":"card","name":"Hieu's Mac","age_recipient":"age1…","sign_pub":"<b64u>"}
+{"v":1,"t":"card","name":"Family Mac","age_recipient":"age1…","sign_pub":"<b64u>"}
 ```
 
 `processor_id` is derived from `sign_pub`. `name` is 1 to 64 characters. The card is not signed; the member trusts it because they compare its fingerprint (2.5) with the one `hka card` prints on the processor's own screen. The app MUST show the fingerprint and MUST require confirmation before adding the processor.
@@ -143,7 +143,7 @@ A grant lists the processors allowed to read a device's batches. It is signed by
 
 ```json
 {"v":1,"t":"grant","user_id":"u_…","device_id":"d_…","grant_seq":2,
- "processors":[{"id":"p_…","name":"Hieu's Mac","age_recipient":"age1…","sign_pub":"<b64u>"}],
+ "processors":[{"id":"p_…","name":"Family Mac","age_recipient":"age1…","sign_pub":"<b64u>"}],
  "created_at":"2026-11-13T08:00:00.000Z"}
 ```
 

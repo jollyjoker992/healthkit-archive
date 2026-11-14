@@ -1,0 +1,50 @@
+{
+ "resourceType": "Observation",
+ "id": "steps",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "u_example/2026-11-12/HKQuantityTypeIdentifierStepCount"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "activity"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "41950-7",
+    "display": "Number of steps in 24 hour Measured"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKQuantityTypeIdentifierStepCount"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectivePeriod": {
+  "start": "2026-11-12T00:00:00+07:00",
+  "end": "2026-11-13T00:00:00+07:00"
+ },
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 6120.0,
+  "unit": "/d",
+  "system": "http://unitsofmeasure.org",
+  "code": "/d"
+ }
+}

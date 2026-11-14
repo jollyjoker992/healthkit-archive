@@ -1,0 +1,106 @@
+name: macOS (self-hosted)
+
+# The iOS app and everything that needs Xcode or the Simulator. Runs only when started by hand
+# (Actions → "macOS (self-hosted)" → Run workflow), never on push or pull request.
+#
+# Runner requirements (see docs/ci.md):
+# - a self-hosted runner with the labels self-hosted, macOS, ARM64, with Xcode and an iOS Simulator runtime
+# - Xcode's first-launch components installed (`sudo xcodebuild -runFirstLaunch`, again after Xcode or
+#   macOS updates); without them the UI test runner never starts ("failed to bless service hub")
+# - Python 3.11+ as python3; Node is installed by the workflow
+# - optional, for the FHIR steps: a Medplum test project, its .env.test file at the path in the repository
+#   variable HKA_E2E_FHIR_ENV (python3 medplum/setup.py project --test writes one)
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulator:
+        description: Run the Simulator end-to-end test (real HealthKit data, about 10 minutes)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: false   # one Simulator per runner; queue instead of interrupting
+
+jobs:
+  app:
+    name: iOS app, Swift core, Simulator end to end
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build folder
+        run: echo "DERIVED=$RUNNER_TEMP/hka-derived" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: worker/.nvmrc
+      - name: Python environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install -e ./cli
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes | grep -i ios
+          xcodebuild -checkFirstLaunchStatus || {
+            echo "::error::Xcode's first-launch components are missing on this runner: run 'sudo xcodebuild -runFirstLaunch' on it"
+            exit 1
+          }
+
+      - name: Swift core tests (spec vectors, age output, sync engine)
+        working-directory: ios/HKACore
+        run: swift test
+
+      - name: App builds for device (Release) and Simulator (Debug, with UI tests)
+        working-directory: ios
+        run: |
+          xcodebuild -project HealthBackup.xcodeproj -scheme HealthBackup -sdk iphoneos -configuration Release \
+            -derivedDataPath "$DERIVED" CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -project HealthBackup.xcodeproj -scheme HealthBackup \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED" \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build-for-testing
+
+      - name: Every UI string has a Vietnamese translation
+        run: python3 ios/tools/check-strings.py "$DERIVED"
+
+      - name: Worker and validator packages
+        run: |
+          (cd worker && npm ci --no-audit --no-fund)
+          (cd tools/fhir-validate && npm ci --no-audit --no-fund)
+
+      - name: End to end with the Swift core (hka-swift-device → relay → processor)
+        env:
+          HKA_E2E: "1"
+          HKA_E2E_FHIR_ENV: ${{ vars.HKA_E2E_FHIR_ENV }}
+        run: |
+          (cd ios/HKACore && swift build)
+          HKA_NODE_BIN="$(dirname "$(command -v node)")"
+          export HKA_NODE_BIN
+          python3 -m unittest discover -s cli/tests -p 'test_e2e_local.py' -v
+
+      - name: Simulator end to end (real HealthKit → app → relay → processor → FHIR)
+        if: inputs.simulator
+        env:
+          HKA_E2E_SIM: "1"
+          HKA_E2E_SKIP_BUILD: "1"   # built above
+          HKA_E2E_FHIR_ENV: ${{ vars.HKA_E2E_FHIR_ENV }}
+        run: |
+          HKA_NODE_BIN="$(dirname "$(command -v node)")"
+          export HKA_NODE_BIN
+          export HKA_E2E_DERIVED="$DERIVED"
+          python3 -m unittest discover -s cli/tests -p 'test_e2e_simulator.py' -v
+
+      - name: Test results on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: xcresult
+          path: ${{ env.DERIVED }}/Logs/Test
+          if-no-files-found: ignore
+          retention-days: 7

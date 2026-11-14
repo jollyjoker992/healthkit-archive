@@ -207,7 +207,8 @@ class Loading(Ready):
         try:
             client = F.FhirClient(f"http://127.0.0.1:{server.server_address[1]}", "id", "secret", sleep=lambda s: None)
             self.assertEqual(F.load_user(self.store, self.user, client, BASE), {"loaded": 2, "skipped": 0, "removed": 0, "errors": []})
-            self.assertEqual(len(FakeFhir.state["posts"]), 2)  # both CodeSystems
+            self.assertEqual(sorted(FakeFhir.state["posts"]),  # the terminology: two CodeSystems and the ValueSet
+                             ["/fhir/R4/CodeSystem", "/fhir/R4/CodeSystem", "/fhir/R4/ValueSet"])
             self.assertEqual(F.load_user(self.store, self.user, client, BASE), {"loaded": 0, "skipped": 2, "removed": 0, "errors": []})
             self.sync([{"k": "deleted", "uuid": rec["uuid"], "type": rec["type"], "observed_at": "2026-11-13T07:00:00.000Z"},
                        sample(HR, "2026-11-12T05:00:00.000Z", value=90, unit="count/min")])

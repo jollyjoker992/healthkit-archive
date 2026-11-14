@@ -25,6 +25,7 @@ import urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import NamedTuple
 from xml.sax.saxutils import escape
 
 from hkacommon.encoding import is_instant, parse_instant, sha256_hex
@@ -32,7 +33,7 @@ from . import days as D
 from .build import read_lines
 from .store import Store, atomic_write, instant, read_json, write_json
 
-MAPPING_VERSION = "0.3.0"
+MAPPING_VERSION = "0.4.0"
 DEFAULT_BASE = "https://github.com/jollyjoker992/healthkit-archive/fhir"
 UCUM = "http://unitsofmeasure.org"
 LOINC_SYSTEM = "http://loinc.org"
@@ -75,20 +76,78 @@ LOINC = {
     "55424-6": ("Calories burned in unspecified time Pedometer", "kcal"),
 }
 
-# Values without a correct LOINC code: code -> (display, UCUM unit or None for text, definition).
+class Metric(NamedTuple):
+    group: str
+    display: str
+    unit: str | None          # UCUM unit; None for a text value
+    value_type: str           # FHIR value type: Quantity, SampledData or CodeableConcept (text only)
+    source: str               # where the value comes from
+    definition: str
+
+
+# Groups of the hka-metrics CodeSystem (not selectable, they only organise the codes).
+METRIC_GROUPS = {
+    "daily-activity": ("Daily activity", "Day totals of cumulative HealthKit quantities that have no matching LOINC code."),
+    "heart": ("Heart", "Heart-rate values that no LOINC code describes correctly."),
+    "sleep": ("Sleep", "Sleep stages that LOINC has no code for."),
+    "workout": ("Workout", "Workout figures without a LOINC code."),
+    "ecg": ("Electrocardiogram", "Apple Watch single-lead ECG recordings."),
+    "fitness": ("Fitness", "Cardio-fitness values without a correct LOINC code."),
+}
+
+# Values without a correct LOINC code. Published as fhir/CodeSystem-hka-metrics.json; changing this table
+# changes MAPPING_VERSION and the files (python3 tools/fhir_terminology.py).
 METRICS = {
-    "active-energy-daily": ("Active energy burned, day total", "kcal", "Sum of HKQuantityTypeIdentifierActiveEnergyBurned for the local day, one source."),
-    "basal-energy-daily": ("Basal energy burned, day total", "kcal", "Sum of HKQuantityTypeIdentifierBasalEnergyBurned for the local day, one source."),
-    "exercise-minutes-daily": ("Exercise minutes, day total", "min", "Sum of HKQuantityTypeIdentifierAppleExerciseTime for the local day."),
-    "distance-cycling-daily": ("Cycling distance, day total", "m", "Sum of HKQuantityTypeIdentifierDistanceCycling for the local day."),
-    "hr-minute-mean": ("Heart rate, 1-minute means", "/min", "Mean of the heart-rate samples starting in each minute of the local day; E where there is none."),
-    "sleep-in-bed": ("Time in bed", "min", "Minutes of HKCategoryValueSleepAnalysis.inBed for the night ending on this day."),
-    "sleep-unspecified": ("Asleep, stage not specified", "min", "Minutes of asleepUnspecified for the night ending on this day."),
-    "workout-distance": ("Workout distance", "m", "Total distance of the workout."),
-    "workout-active-energy": ("Workout active energy", "kcal", "Active energy of the workout from its statistics."),
-    "ecg-lead-i": ("ECG voltage, lead I (Apple Watch)", "uV", "Voltage samples similar to lead I at the recorded sampling frequency."),
-    "ecg-classification": ("ECG classification", None, "HKElectrocardiogram.Classification case name."),
-    "vo2-max": ("VO2 max", "mL/(kg.min)", "HKQuantityTypeIdentifierVO2Max. LOINC 60842-2 is VO2, not VO2 max."),
+    "active-energy-daily": Metric(
+        "daily-activity", "Active energy burned, day total", "kcal", "Quantity",
+        "summary.json totals.HKQuantityTypeIdentifierActiveEnergyBurned",
+        "Energy burned above resting metabolism during the local calendar day: the sum of "
+        "HKQuantityTypeIdentifierActiveEnergyBurned samples from one source (the source with the largest total, "
+        "or the configured priority). Estimated by the device. LOINC 41979-6 is total calories, not active."),
+    "basal-energy-daily": Metric(
+        "daily-activity", "Basal energy burned, day total", "kcal", "Quantity",
+        "summary.json totals.HKQuantityTypeIdentifierBasalEnergyBurned",
+        "Resting energy for the local calendar day: the sum of HKQuantityTypeIdentifierBasalEnergyBurned from one "
+        "source. An estimate from body measurements, not a measured metabolic rate (so not LOINC 69429-9)."),
+    "exercise-minutes-daily": Metric(
+        "daily-activity", "Exercise minutes, day total", "min", "Quantity",
+        "summary.json totals.HKQuantityTypeIdentifierAppleExerciseTime",
+        "Apple's Exercise ring minutes for the local calendar day: minutes of movement at or above a brisk walk, as "
+        "judged by Apple Watch. Not split into moderate and vigorous, so LOINC 77592-4 / 77593-2 do not apply."),
+    "distance-cycling-daily": Metric(
+        "daily-activity", "Cycling distance, day total", "m", "Quantity",
+        "summary.json totals.HKQuantityTypeIdentifierDistanceCycling",
+        "Distance cycled during the local calendar day, from one source."),
+    "hr-minute-mean": Metric(
+        "heart", "Heart rate, 1-minute means", "/min", "SampledData",
+        "HKQuantityTypeIdentifierHeartRate.ndjson",
+        "Mean of all heart-rate samples (every source) that start in each minute of the local day; one slot per "
+        "minute (1440, or 1380/1500 on daylight-saving days), E where there is no sample. Not coded LOINC 8867-4: "
+        "the vital-signs heart-rate profile allows only a Quantity value."),
+    "sleep-in-bed": Metric(
+        "sleep", "Time in bed", "min", "Quantity", "summary.json sleep.stages_min.inBed",
+        "Minutes recorded as HKCategoryValueSleepAnalysis.inBed for the night ending on this day, from the chosen "
+        "sleep source. In bed is not asleep; it can overlap the stage minutes."),
+    "sleep-unspecified": Metric(
+        "sleep", "Asleep, stage not specified", "min", "Quantity", "summary.json sleep.stages_min.asleepUnspecified",
+        "Minutes recorded as HKCategoryValueSleepAnalysis.asleepUnspecified (asleep, with no stage) for the night "
+        "ending on this day. Sources without stage tracking (older watches, phones, many third-party apps) write only this."),
+    "workout-distance": Metric(
+        "workout", "Workout distance", "m", "Quantity", "HKWorkoutTypeIdentifier stats.HKQuantityTypeIdentifierDistance*",
+        "Total distance of the workout: the largest of its distance statistics (walking/running, cycling, swimming, "
+        "and so on), converted to metres."),
+    "ecg-lead-i": Metric(
+        "ecg", "ECG voltage, lead I (Apple Watch)", "uV", "SampledData", "HKDataTypeIdentifierElectrocardiogram voltages_uv",
+        "Voltage samples of an Apple Watch ECG, similar to limb lead I, in microvolts at the recorded sampling "
+        "frequency (period = 1000 / Hz ms). E marks a missing sample."),
+    "ecg-classification": Metric(
+        "ecg", "ECG classification", None, "CodeableConcept", "HKDataTypeIdentifierElectrocardiogram classification",
+        "Apple's classification of the recording, as the HKElectrocardiogram.Classification case name "
+        "(sinusRhythm, atrialFibrillation, inconclusiveLowHeartRate, ...). A screening result, not a diagnosis."),
+    "vo2-max": Metric(
+        "fitness", "VO2 max", "mL/(kg.min)", "Quantity", "HKQuantityTypeIdentifierVO2Max",
+        "Maximal oxygen uptake as estimated by the device (Apple Watch cardio fitness). LOINC 60842-2 is VO2 "
+        "(oxygen consumption), not VO2 max."),
 }
 
 # HealthKit unit string -> (UCUM unit, factor). Percent values are fractions in HealthKit.
@@ -125,8 +184,21 @@ SAMPLE_LOINC = {
     "HKQuantityTypeIdentifierBloodGlucose": ("laboratory", ["2339-0"], "mg/dL"),
 }
 
+# Daily totals (summary.json): HealthKit type, LOINC codes, hka-metrics code, UCUM unit, category.
+DAILY_PLAN = [
+    ("HKQuantityTypeIdentifierStepCount", ["41950-7"], None, "/d", "activity"),
+    ("HKQuantityTypeIdentifierDistanceWalkingRunning", ["41953-1"], None, "m", "activity"),
+    ("HKQuantityTypeIdentifierFlightsClimbed", ["93833-2"], None, "{#}", "activity"),
+    ("HKQuantityTypeIdentifierActiveEnergyBurned", [], "active-energy-daily", "kcal", "activity"),
+    ("HKQuantityTypeIdentifierBasalEnergyBurned", [], "basal-energy-daily", "kcal", "activity"),
+    ("HKQuantityTypeIdentifierAppleExerciseTime", [], "exercise-minutes-daily", "min", "activity"),
+    ("HKQuantityTypeIdentifierDistanceCycling", [], "distance-cycling-daily", "m", "activity"),
+]
+
 # Quantity types aggregated per day instead of one Observation per sample.
 DAILY_ONLY = set(D.CUMULATIVE) | {D.HEART_RATE}
+
+BP_MEMBERS = {"HKQuantityTypeIdentifierBloodPressureSystolic", "HKQuantityTypeIdentifierBloodPressureDiastolic"}
 
 # Sleep stage name -> LOINC (nightly totals; the per-interval timeline stays in the day folder).
 SLEEP_STAGES = {"asleepDeep": "93831-6", "asleepCore": "93830-8", "asleepREM": "93829-0", "awake": "93828-2"}
@@ -189,7 +261,7 @@ class Mapper:
     def code(self, loinc: list[str] = (), hk_type: str | None = None, metric: str | None = None, text: str | None = None):
         codings = [{"system": LOINC_SYSTEM, "code": c, "display": LOINC[c][0]} for c in loinc]
         if metric:
-            codings.append({"system": f"{self.base}/CodeSystem/hka-metrics", "code": metric, "display": METRICS[metric][0]})
+            codings.append({"system": f"{self.base}/CodeSystem/hka-metrics", "code": metric, "display": METRICS[metric].display})
         if hk_type:
             codings.append({"system": f"{self.base}/CodeSystem/healthkit-type", "code": hk_type})
         out = {"coding": codings}
@@ -269,16 +341,7 @@ class Mapper:
 
     def daily_totals(self) -> None:
         totals = self.summary.get("totals") or {}
-        plan = [
-            ("HKQuantityTypeIdentifierStepCount", ["41950-7"], None, "/d", "activity"),
-            ("HKQuantityTypeIdentifierDistanceWalkingRunning", ["41953-1"], None, "m", "activity"),
-            ("HKQuantityTypeIdentifierFlightsClimbed", ["93833-2"], None, "{#}", "activity"),
-            ("HKQuantityTypeIdentifierActiveEnergyBurned", [], "active-energy-daily", "kcal", "activity"),
-            ("HKQuantityTypeIdentifierBasalEnergyBurned", [], "basal-energy-daily", "kcal", "activity"),
-            ("HKQuantityTypeIdentifierAppleExerciseTime", [], "exercise-minutes-daily", "min", "activity"),
-            ("HKQuantityTypeIdentifierDistanceCycling", [], "distance-cycling-daily", "m", "activity"),
-        ]
-        for hk, loinc, metric, unit, category in plan:
+        for hk, loinc, metric, unit, category in DAILY_PLAN:
             t = totals.get(hk)
             if not t:
                 continue
@@ -492,8 +555,6 @@ def fmt(x: float, digits: int) -> str:
     return "0" if text in ("", "-0") else text
 
 
-BP_MEMBERS = {"HKQuantityTypeIdentifierBloodPressureSystolic", "HKQuantityTypeIdentifierBloodPressureDiastolic"}
-
 
 def route_gpx(parts: list[dict], workout: dict) -> bytes:
     points = [p for r in parts for p in (r.get("points") or []) if isinstance(p, list) and len(p) >= 3]
@@ -513,25 +574,154 @@ def route_gpx(parts: list[dict], workout: dict) -> bytes:
 
 # ------------------------------------------------------------------------------ terminology
 
-def codesystems(base: str) -> list[dict]:
-    """The hka-metrics and healthkit-type CodeSystems, versioned with the mapping."""
+# The published terminology: generated from the tables above by tools/fhir_terminology.py, committed, shipped
+# with the package and loaded by `hka fhir load`. CI checks the files match the code (`--check`).
+TERMINOLOGY_DIR = Path(__file__).resolve().parent / "terminology"
+TERMINOLOGY_FILES = ("CodeSystem-hka-metrics.json", "ValueSet-hka-metrics.json", "CodeSystem-healthkit-type.json")
+
+# Display names where splitting the identifier would read badly.
+HK_DISPLAY = {
+    "HKQuantityTypeIdentifierVO2Max": "VO2 max",
+    "HKQuantityTypeIdentifierDistanceWalkingRunning": "Walking and running distance",
+    "HKQuantityTypeIdentifierHeartRateVariabilitySDNN": "Heart rate variability (SDNN)",
+    "HKQuantityTypeIdentifierUVExposure": "UV exposure",
+    "HKQuantityTypeIdentifierForcedExpiratoryVolume1": "Forced expiratory volume in 1 second",
+    "HKQuantityTypeIdentifierNikeFuel": "NikeFuel",
+    "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute": "Heart rate recovery, one minute",
+    "HKCorrelationTypeIdentifierBloodPressure": "Blood pressure (correlation)",
+    "HKCorrelationTypeIdentifierFood": "Food (correlation)",
+    "HKWorkoutTypeIdentifier": "Workout",
+    "HKDataTypeIdentifierElectrocardiogram": "Electrocardiogram",
+    "HKDataTypeIdentifierHeartbeatSeries": "Heartbeat series",
+    "HKDataTypeIdentifierAudiogram": "Audiogram",
+}
+HK_PREFIXES = (("HKQuantityTypeIdentifier", "quantity"), ("HKCategoryTypeIdentifier", "category"),
+               ("HKCorrelationTypeIdentifier", "correlation"), ("HKDataTypeIdentifier", "data"),
+               ("HKWorkoutTypeIdentifier", "workout"))
+
+
+def hk_kind(t: str) -> str:
+    return next(kind for prefix, kind in HK_PREFIXES if t.startswith(prefix))
+
+
+def hk_display(t: str) -> str:
+    if t in HK_DISPLAY:
+        return HK_DISPLAY[t]
+    name = next(t[len(prefix):] for prefix, _ in HK_PREFIXES if t.startswith(prefix))
+    if name.startswith("Apple"):
+        name = name[5:]
+    words, word = [], ""
+    for i, ch in enumerate(name):  # "DistanceWalkingRunning" -> "Distance walking running", "UVExposure" kept as UV
+        if ch.isupper() and word and not (word[-1].isupper() and (i + 1 == len(name) or name[i + 1].isupper())):
+            words.append(word)
+            word = ""
+        word += ch
+    words.append(word)
+    text = " ".join(w if w.isupper() and len(w) > 1 else w.lower() for w in words)
+    return text[0].upper() + text[1:]
+
+
+def hk_mapping(t: str) -> str:
+    """How `hka fhir map` represents a HealthKit type (shown by CodeSystem/$lookup)."""
+    loinc_txt = lambda codes: " + ".join(f"LOINC {c}" for c in codes)
+    for hk, loinc, metric, unit, _ in DAILY_PLAN:
+        if hk == t:
+            return f"Daily total (one source) as one Observation per day: {loinc_txt(loinc) or 'hka-metrics ' + metric} in {unit}."
+    if t == D.HEART_RATE:
+        return ("Per day: hka-metrics hr-minute-mean (valueSampledData, 1-minute means), and LOINC 8883-1 / 8873-2 "
+                "for the day minimum and maximum. Individual samples stay in the day folder.")
+    if t in SAMPLE_LOINC:
+        category, loinc, unit = SAMPLE_LOINC[t]
+        return f"One Observation per sample: {loinc_txt(loinc)} in {unit}, category {category}."
+    if t == "HKQuantityTypeIdentifierVO2Max":
+        return "One Observation per sample: hka-metrics vo2-max in mL/(kg.min)."
+    if t in BP_MEMBERS:
+        return "Not mapped on its own: a component (LOINC 8480-6 / 8462-4) of the blood-pressure Observation."
+    if t == D.SLEEP:
+        return ("One Observation per night (ending on the day): LOINC 93832-4 asleep minutes, with stage components "
+                "93831-6 deep, 93830-8 core, 93829-0 REM, 93828-2 awake, and hka-metrics sleep-in-bed / sleep-unspecified.")
+    if t == "HKCorrelationTypeIdentifierBloodPressure":
+        return "One Observation per reading: LOINC 85354-9 panel with 8480-6 systolic and 8462-4 diastolic components."
+    if t == D.WORKOUT:
+        return ("One Observation per workout: LOINC 55411-3 duration in min, components 73985-4 activity (text), "
+                "55425-3 mean HR, 55426-1 max HR, 55424-6 energy, hka-metrics workout-distance; the route as a GPX "
+                "DocumentReference in derivedFrom.")
+    if t == "HKDataTypeIdentifierElectrocardiogram":
+        return ("One Observation per recording, category procedure: hka-metrics ecg-classification (text), "
+                "ecg-lead-i (valueSampledData, uV) and LOINC 8867-4 average heart rate.")
+    if t in ("HKCorrelationTypeIdentifierFood", "HKDataTypeIdentifierHeartbeatSeries", "HKDataTypeIdentifierAudiogram"):
+        return "Not mapped to FHIR; kept in the day folder."
+    if hk_kind(t) == "quantity":
+        return "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    return "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+
+
+def build_terminology(catalog: list[str], base: str = DEFAULT_BASE) -> list[dict]:
+    """CodeSystem and ValueSet for hka-metrics, and the healthkit-type CodeSystem for `catalog` (the app's types)."""
+    concepts = []
+    for group, (display, definition) in METRIC_GROUPS.items():
+        members = [{"code": code, "display": m.display, "definition": m.definition, "property":
+                    ([{"code": "unit", "valueString": m.unit}] if m.unit else [])
+                    + [{"code": "valueType", "valueString": m.value_type}, {"code": "source", "valueString": m.source}]}
+                   for code, m in METRICS.items() if m.group == group]
+        if members:
+            concepts.append({"code": group, "display": display, "definition": definition,
+                             "property": [{"code": "notSelectable", "valueBoolean": True}], "concept": members})
     metrics = {
-        "resourceType": "CodeSystem", "url": f"{base}/CodeSystem/hka-metrics", "version": MAPPING_VERSION,
-        "name": "HkaMetrics", "title": "healthkit-archive metrics", "status": "active", "content": "complete",
-        "description": "Values derived from Apple HealthKit that have no correct LOINC code.",
-        "property": [{"code": "unit", "type": "string", "description": "UCUM unit of the value"}],
-        "concept": [{"code": c, "display": d, "definition": definition,
-                     **({"property": [{"code": "unit", "valueString": u}]} if u else {})}
-                    for c, (d, u, definition) in METRICS.items()],
+        "resourceType": "CodeSystem", "id": "hka-metrics", "url": f"{base}/CodeSystem/hka-metrics",
+        "version": MAPPING_VERSION, "name": "HkaMetrics", "title": "HealthKit values without a standard code",
+        "status": "draft", "experimental": False, "publisher": "healthkit-archive",
+        "description": "Codes for Apple HealthKit values that have no correct LOINC code. Values that do have one "
+                       "(steps, heart rate, sleep durations, SpO2, weight and others) use LOINC; see docs/fhir-mapping.md. "
+                       "Each concept states its unit, value type and where the value comes from. Group concepts are "
+                       "not selectable and only organise the codes.",
+        "caseSensitive": True, "hierarchyMeaning": "grouped-by", "content": "complete",
+        "property": [
+            {"code": "notSelectable", "uri": "http://hl7.org/fhir/concept-properties#notSelectable", "type": "boolean",
+             "description": "Group concept; never used as an Observation code."},
+            {"code": "unit", "type": "string", "description": "UCUM unit the value is recorded in. Absent for text values."},
+            {"code": "valueType", "type": "string", "description": "FHIR value type: Quantity, SampledData or CodeableConcept (text only)."},
+            {"code": "source", "type": "string", "description": "Where the value comes from: day-folder file or HealthKit field."},
+        ],
+        "count": len(METRICS), "concept": concepts,
+    }
+    valueset = {
+        "resourceType": "ValueSet", "id": "hka-metrics", "url": f"{base}/ValueSet/hka-metrics",
+        "version": MAPPING_VERSION, "name": "HkaMetrics", "title": "All selectable hka-metrics codes", "status": "draft",
+        "description": "Every selectable code in the hka-metrics CodeSystem. Group concepts are excluded.",
+        "compose": {"include": [{"system": f"{base}/CodeSystem/hka-metrics",
+                                 "concept": [{"code": c, "display": m.display} for c, m in METRICS.items()]}]},
     }
     types = {
-        "resourceType": "CodeSystem", "url": f"{base}/CodeSystem/healthkit-type", "version": MAPPING_VERSION,
-        "name": "HealthKitType", "title": "Apple HealthKit type identifiers", "status": "active", "content": "fragment",
-        "description": "HealthKit type identifier strings (HKQuantityTypeIdentifier…, HKCategoryTypeIdentifier…, …) "
-                       "used as a second coding so every Observation round-trips to its HealthKit type.",
-        "caseSensitive": True,
+        "resourceType": "CodeSystem", "id": "healthkit-type", "url": f"{base}/CodeSystem/healthkit-type",
+        "version": MAPPING_VERSION, "name": "HealthKitType", "title": "Apple HealthKit type identifiers",
+        "status": "draft", "experimental": False, "publisher": "healthkit-archive",
+        "description": "The HealthKit type identifiers the healthkit-archive app reads. Every Observation carries its "
+                       "HealthKit type as a coding in this system, so it can be traced back to the source type. The "
+                       "`kind` property gives the HealthKit class and `mapping` how the type appears in FHIR. The codes "
+                       "are Apple's identifier strings; their meaning is defined by Apple's HealthKit documentation.",
+        "caseSensitive": True, "content": "complete",
+        "property": [
+            {"code": "kind", "type": "string", "description": "quantity, category, correlation, workout or data (series and other objects)."},
+            {"code": "mapping", "type": "string", "description": "How hka fhir map represents values of this type."},
+        ],
+        "count": len(catalog),
+        "concept": [{"code": t, "display": hk_display(t), "property": [
+            {"code": "kind", "valueString": hk_kind(t)}, {"code": "mapping", "valueString": hk_mapping(t)}]}
+            for t in catalog],
     }
-    return [metrics, types]
+    return [metrics, valueset, types]
+
+
+def terminology(base: str) -> list[dict]:
+    """The committed terminology files, with their URLs moved to `base` when it is not the default."""
+    out = []
+    for name in TERMINOLOGY_FILES:
+        text = (TERMINOLOGY_DIR / name).read_text()
+        if base != DEFAULT_BASE:
+            text = text.replace(json.dumps(DEFAULT_BASE)[1:-1], json.dumps(base)[1:-1])
+        out.append(json.loads(text))
+    return out
 
 
 # ------------------------------------------------------------------------------ map
@@ -740,18 +930,20 @@ class Loader:
         write_json(self.path, self.manifest)
 
     def terminology(self) -> None:
-        for cs in codesystems(self.base):
-            digest = sha256_hex(json.dumps(cs, sort_keys=True).encode())  # any edit reaches the server
-            if self.manifest["terminology"].get(cs["url"]) == digest:
+        for res in terminology(self.base):
+            digest = sha256_hex(json.dumps(res, sort_keys=True).encode())  # any edit reaches the server
+            if self.manifest["terminology"].get(res["url"]) == digest:
                 continue
-            found = self.client.request("GET", f"/fhir/R4/CodeSystem?url={urllib.parse.quote(cs['url'], safe='')}")
+            rtype = res["resourceType"]
+            res.pop("id", None)  # the server assigns ids; the file's id is for readers and the validator
+            found = self.client.request("GET", f"/fhir/R4/{rtype}?url={urllib.parse.quote(res['url'], safe='')}")
             entries = (found or {}).get("entry") or [] if isinstance(found, dict) else []
             if entries:
-                cs["id"] = entries[0]["resource"]["id"]
-                self.client.request("PUT", f"/fhir/R4/CodeSystem/{cs['id']}", cs)
+                res["id"] = entries[0]["resource"]["id"]
+                self.client.request("PUT", f"/fhir/R4/{rtype}/{res['id']}", res)
             else:
-                self.client.request("POST", "/fhir/R4/CodeSystem", cs)
-            self.manifest["terminology"][cs["url"]] = digest
+                self.client.request("POST", f"/fhir/R4/{rtype}", res)
+            self.manifest["terminology"][res["url"]] = digest
             self.save()
 
     def attach_binaries(self, resources: list[dict], previous: dict, uploaded: list[str]) -> dict:

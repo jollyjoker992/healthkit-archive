@@ -1,0 +1,63 @@
+{
+ "resourceType": "ValueSet",
+ "id": "hka-metrics",
+ "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/ValueSet/hka-metrics",
+ "version": "0.4.0",
+ "name": "HkaMetrics",
+ "title": "All selectable hka-metrics codes",
+ "status": "draft",
+ "description": "Every selectable code in the hka-metrics CodeSystem. Group concepts are excluded.",
+ "compose": {
+  "include": [
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+    "concept": [
+     {
+      "code": "active-energy-daily",
+      "display": "Active energy burned, day total"
+     },
+     {
+      "code": "basal-energy-daily",
+      "display": "Basal energy burned, day total"
+     },
+     {
+      "code": "exercise-minutes-daily",
+      "display": "Exercise minutes, day total"
+     },
+     {
+      "code": "distance-cycling-daily",
+      "display": "Cycling distance, day total"
+     },
+     {
+      "code": "hr-minute-mean",
+      "display": "Heart rate, 1-minute means"
+     },
+     {
+      "code": "sleep-in-bed",
+      "display": "Time in bed"
+     },
+     {
+      "code": "sleep-unspecified",
+      "display": "Asleep, stage not specified"
+     },
+     {
+      "code": "workout-distance",
+      "display": "Workout distance"
+     },
+     {
+      "code": "ecg-lead-i",
+      "display": "ECG voltage, lead I (Apple Watch)"
+     },
+     {
+      "code": "ecg-classification",
+      "display": "ECG classification"
+     },
+     {
+      "code": "vo2-max",
+      "display": "VO2 max"
+     }
+    ]
+   }
+  ]
+ }
+}

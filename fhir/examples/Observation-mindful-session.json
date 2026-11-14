@@ -1,0 +1,32 @@
+{
+ "resourceType": "Observation",
+ "id": "mindful-session",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000401"
+  }
+ ],
+ "status": "final",
+ "code": {
+  "coding": [
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKCategoryTypeIdentifierMindfulSession"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectivePeriod": {
+  "start": "2026-11-12T12:00:00.000+07:00",
+  "end": "2026-11-12T12:10:00.000+07:00"
+ },
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueCodeableConcept": {
+  "text": "notApplicable"
+ }
+}

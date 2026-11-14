@@ -1,0 +1,17 @@
+{
+ "resourceType": "Patient",
+ "id": "example",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/hka-user",
+   "value": "u_example"
+  }
+ ],
+ "name": [
+  {
+   "text": "Example Person"
+  }
+ ],
+ "gender": "female",
+ "birthDate": "1960-02-03"
+}

@@ -6,6 +6,7 @@ node_modules/
 .dev.vars
 /data/
 .env
+.env.*
 worker/.dev.vars
 ios/build/
 ios/*.xcodeproj/xcuserdata/
@@ -18,3 +19,4 @@ tools/fhir-validate/node_modules/
 .build/
 .swiftpm/
 *.egg-info/
+build/

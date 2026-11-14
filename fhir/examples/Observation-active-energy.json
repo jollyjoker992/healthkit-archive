@@ -1,0 +1,50 @@
+{
+ "resourceType": "Observation",
+ "id": "active-energy",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "u_example/2026-11-12/HKQuantityTypeIdentifierActiveEnergyBurned"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "activity"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+    "code": "active-energy-daily",
+    "display": "Active energy burned, day total"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKQuantityTypeIdentifierActiveEnergyBurned"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectivePeriod": {
+  "start": "2026-11-12T00:00:00+07:00",
+  "end": "2026-11-13T00:00:00+07:00"
+ },
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 412.5,
+  "unit": "kcal",
+  "system": "http://unitsofmeasure.org",
+  "code": "kcal"
+ }
+}

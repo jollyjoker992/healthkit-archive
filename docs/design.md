@@ -6,17 +6,17 @@
 
 ## Context
 
-The goal is a family-scale, backup-first archive of Apple Health (HealthKit) data that later feeds FHIR R4 and AI health-advisor agents, the same way `garmin-archive` does for Garmin. Research in `reports/` showed that nobody ships this combination: existing HealthKit exporters store plaintext in a database behind bearer tokens. Because the relay runs on Cloudflare (storage operated by someone else), health data is end-to-end encrypted on the phone and the server only ever holds ciphertext.
+The goal is a family-scale, backup-first archive of Apple Health (HealthKit) data that later feeds FHIR R4 and AI health-advisor agents, the same way the author's garmin-archive project does for Garmin. A survey of existing projects (November 2026) found none that ships this combination: existing HealthKit exporters store plaintext in a database behind bearer tokens. Because the relay runs on Cloudflare (storage operated by someone else), health data is end-to-end encrypted on the phone and the server only ever holds ciphertext.
 
-Decisions already made by the owner:
-- HealthKit only; the Huawei-specific lane is dropped.
+Decisions made before the design:
+- HealthKit only: data from other vendors' apps (for example Huawei Health) is read through HealthKit, not through their own APIs.
 - End-to-end encryption with the `age` file format; signed batches.
 - No passwords or bearer tokens: identity is a public key, the server keeps an allowlist.
 - Each member decides in the app who can decrypt their data ("processors"), and can add or remove them.
 - The CLI is a processor (and the admin tool), written in Python, and includes FHIR mapping.
 - The relay is a Cloudflare Worker.
 
-Outcome: a new repository `healthkit-archive/` beside `garmin-archive/`, with `docs/design.md` (this document), `spec/` (formats and test vectors), `worker/`, `cli/`, `ios/`.
+Outcome: this repository, with `docs/design.md` (this document), `spec/` (formats and test vectors), `worker/`, `cli/`, `ios/`.
 
 ## 1. System overview
 

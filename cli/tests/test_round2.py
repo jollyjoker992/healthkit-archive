@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import unittest
+from pathlib import Path
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from unittest import mock
@@ -149,3 +152,23 @@ class Round2(Ready):
             data[-1] ^= 1
             ct.write_bytes(bytes(data))
             self.assertEqual(self.run_verify(), 1)
+
+
+class EnvFile(unittest.TestCase):
+    """`hka` takes HKA_* settings from ./.env on a real command line; values already set win."""
+
+    def test_reads_only_hka_keys_and_never_overrides(self):
+        import tempfile
+        from hka import cli as hka_cli
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env"
+            env.write_text('# comment\nHKA_TEST_ONE="from file"\nHKA_TEST_TWO=file\nOTHER_TEST_KEY=x\n')
+            os.environ["HKA_TEST_TWO"] = "already set"
+            try:
+                hka_cli.load_env_file(env)
+                self.assertEqual(os.environ["HKA_TEST_ONE"], "from file")
+                self.assertEqual(os.environ["HKA_TEST_TWO"], "already set")
+                self.assertNotIn("OTHER_TEST_KEY", os.environ)
+            finally:
+                for k in ("HKA_TEST_ONE", "HKA_TEST_TWO"):
+                    os.environ.pop(k, None)

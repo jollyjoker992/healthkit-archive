@@ -1,0 +1,42 @@
+healthkit-archive
+Copyright 2026 Hiếu Phạm
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party content and attribution
+-----------------------------------
+
+LOINC
+  This material contains content from LOINC (http://loinc.org): the LOINC codes
+  and names used in cli/hka/fhir.py, cli/hka/terminology/, fhir/examples/ and
+  the documentation. LOINC is copyright Regenstrief Institute, Inc. and the
+  Logical Observation Identifiers Names and Codes (LOINC) Committee and is
+  available at no cost under the license at http://loinc.org/license. LOINC is
+  a registered United States trademark of Regenstrief Institute, Inc.
+
+Medplum
+  medplum/docker-compose.yml is based on docker-compose.full-stack.yml from
+  https://github.com/medplum/medplum (Apache License 2.0, Copyright Orangebot,
+  Inc. and Medplum contributors). Medplum images are pulled from Docker Hub at
+  runtime and are not part of this repository. tools/fhir-validate installs
+  @medplum/core and @medplum/definitions (Apache License 2.0) from npm.
+
+age
+  The iOS app writes the age v1 file format (https://c2sp.org/age) with its own
+  implementation; no code from the age reference implementation is included.
+  The processor decrypts with pyrage (MIT License), installed from PyPI.
+
+Apple
+  This project is not affiliated with, endorsed by or supported by Apple Inc.
+  Apple, Apple Health, HealthKit, iPhone and Apple Watch are trademarks of
+  Apple Inc. HealthKit type identifiers (HKQuantityTypeIdentifier…) are used as
+  codes in cli/hka/terminology/CodeSystem-healthkit-type.json so data can be
+  traced to its source type; their meaning is defined by Apple's documentation.
+
+Cloudflare
+  The relay runs on Cloudflare Workers. Cloudflare is a trademark of
+  Cloudflare, Inc. Development tools (wrangler, vitest and the Workers test
+  plugin) are installed from npm and are not distributed with this project.
+
+HL7 FHIR
+  FHIR is the registered trademark of Health Level Seven International.

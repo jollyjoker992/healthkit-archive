@@ -424,10 +424,12 @@ def check_age_vector(path: Path) -> list[str]:
             errors.append(f"bech32 mismatch for {rec}")
     v = json.loads(path.read_text())
     ct = base64.urlsafe_b64decode(v["ciphertext"] + "=" * (-len(v["ciphertext"]) % 4))
-    expected = example_plaintext()
+    # Compare decompressed records: gzip bytes depend on the zlib build (zlib-ng on some Linux Pythons),
+    # while the vector only promises that decryption gives the recorded bytes and they hold the examples.
+    expected = gzip.decompress(example_plaintext())
     for ident in v["identities"]:
         pt = pyrage.decrypt(ct, [pyrage.x25519.Identity.from_str(ident)])
-        if pt != expected or sha256(pt).hex() != v["plaintext_sha256"]:
+        if sha256(pt).hex() != v["plaintext_sha256"] or gzip.decompress(pt) != expected:
             errors.append("age.json plaintext differs from the current examples; regenerate with --age")
             break
     return errors

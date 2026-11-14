@@ -1,0 +1,168 @@
+name: CI
+
+# Required checks, on GitHub-hosted Ubuntu. The iOS app and the Simulator end-to-end test need a Mac and
+# run in macos.yml on the self-hosted runner, only when started by hand.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0            # scan every commit, not only the last one
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --config /repo/.gitleaks.toml --redact --no-banner --exit-code 1 --verbose
+
+  spec:
+    name: Protocol test vectors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install ./cli
+      - name: Vectors regenerate identically
+        run: python spec/tools/gen_vectors.py --check
+
+  worker:
+    name: Relay (Worker) tests and type check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: worker/.nvmrc
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx vitest run
+      - run: npx tsc --noEmit
+
+  cli:
+    name: Processor and admin CLIs (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: worker/.nvmrc
+          cache: npm
+          cache-dependency-path: tools/fhir-validate/package-lock.json
+      - run: python -m pip install -e ./cli
+      - name: FHIR validator (used by the mapping tests)
+        working-directory: tools/fhir-validate
+        run: npm ci --no-audit --no-fund
+      - name: Unit tests (no network, no credentials)
+        run: |
+          HKA_NODE_BIN="$(dirname "$(command -v node)")"
+          export HKA_NODE_BIN
+          python -m unittest discover -s cli/tests -v
+
+  fhir:
+    name: FHIR terminology, examples and validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: worker/.nvmrc
+          cache: npm
+          cache-dependency-path: tools/fhir-validate/package-lock.json
+      - run: python -m pip install ./cli
+      - name: Terminology and examples match the mapper
+        run: |
+          python tools/fhir_terminology.py --check
+          python tools/fhir_examples.py --check
+      - name: Terminology and examples pass Medplum's validator
+        working-directory: tools/fhir-validate
+        run: |
+          npm ci --no-audit --no-fund
+          node validate.mjs ../../cli/hka/terminology ../../fhir
+
+  e2e:
+    name: End to end (relay under wrangler dev, processor, Medplum)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: worker/.nvmrc
+          cache: npm
+          cache-dependency-path: |
+            worker/package-lock.json
+            tools/fhir-validate/package-lock.json
+      - run: python -m pip install -e ./cli
+      - name: Worker and validator packages
+        run: |
+          (cd worker && npm ci --no-audit --no-fund)
+          (cd tools/fhir-validate && npm ci --no-audit --no-fund)
+      - name: Start Medplum (local stack from medplum/, throwaway passwords)
+        working-directory: medplum
+        run: |
+          python3 setup.py init
+          docker compose up -d --wait --wait-timeout 600 medplum-server
+          python3 setup.py project --test
+      - name: End-to-end tests (made-up data, test project only)
+        env:
+          HKA_E2E: "1"
+          HKA_E2E_REQUIRE_FHIR: "1"
+        run: |
+          HKA_NODE_BIN="$(dirname "$(command -v node)")"
+          export HKA_NODE_BIN
+          python -m unittest discover -s cli/tests -p 'test_e2e_local.py' -v
+      - name: Medplum logs on failure
+        if: failure()
+        working-directory: medplum
+        run: docker compose logs --tail 200 medplum-server
+
+  checks:
+    name: Workflow, compose and JSON checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.8 -color
+      - name: JSON files parse
+        run: |
+          find fhir spec cli/hka/terminology -name '*.json' -print0 | while IFS= read -r -d '' f; do
+            python3 -m json.tool "$f" > /dev/null || { echo "invalid JSON: $f"; exit 1; }
+          done
+      - name: Medplum compose file resolves
+        run: |
+          # Placeholder env file: compose needs it to resolve variables; no real secrets in CI.
+          printf 'POSTGRES_PASSWORD=ci\nREDIS_PASSWORD=ci\nMEDPLUM_ADMIN_EMAIL=ci@example.com\nMEDPLUM_ADMIN_PASSWORD=ci\n' > medplum/.env
+          docker compose -f medplum/docker-compose.yml config -q

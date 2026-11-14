@@ -1,0 +1,85 @@
+{
+ "resourceType": "Observation",
+ "id": "blood-pressure",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000501"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "vital-signs"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "85354-9",
+    "display": "Blood pressure panel with all children optional"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKCorrelationTypeIdentifierBloodPressure"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectiveDateTime": "2026-11-12T07:45:00.000+07:00",
+ "device": {
+  "reference": "Device/example"
+ },
+ "component": [
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "8480-6",
+      "display": "Systolic blood pressure"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKQuantityTypeIdentifierBloodPressureSystolic"
+     }
+    ]
+   },
+   "valueQuantity": {
+    "value": 118,
+    "unit": "mm[Hg]",
+    "system": "http://unitsofmeasure.org",
+    "code": "mm[Hg]"
+   }
+  },
+  {
+   "code": {
+    "coding": [
+     {
+      "system": "http://loinc.org",
+      "code": "8462-4",
+      "display": "Diastolic blood pressure"
+     },
+     {
+      "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+      "code": "HKQuantityTypeIdentifierBloodPressureDiastolic"
+     }
+    ]
+   },
+   "valueQuantity": {
+    "value": 76,
+    "unit": "mm[Hg]",
+    "system": "http://unitsofmeasure.org",
+    "code": "mm[Hg]"
+   }
+  }
+ ]
+}

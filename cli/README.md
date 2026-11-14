@@ -26,7 +26,7 @@ hka-admin purge u_…
 Data directory `$HKA_DATA_DIR` (default `./data`).
 
 ```sh
-hka --server https://hka-relay.example.workers.dev init --name "Hieu's Mac"
+hka --server https://hka-relay.example.workers.dev init --name "Family Mac"
 hka card --qr                 # members scan this in the app and compare the fingerprint
 hka init --recovery --out /Volumes/USB/hka-recovery --name Recovery   # offline second recipient
 hka pull                      # new devices are listed with their fingerprint
@@ -80,8 +80,15 @@ age -d -i keys/age.txt inbox/u_…/d_…/batches/0000000001.age | gunzip
 
 ```sh
 .venv/bin/python -m unittest discover -s cli/tests
-HKA_E2E=1 HKA_NODE_BIN=~/.nvm/versions/node/v24.22.2/bin .venv/bin/python -m unittest discover -s cli/tests -p test_e2e_local.py
+HKA_E2E=1 HKA_NODE_BIN="$(dirname "$(command -v node)")" .venv/bin/python -m unittest discover -s cli/tests -p test_e2e_local.py
 ```
 
 The end-to-end test runs the real Worker under `wrangler dev` (local D1 and R2) with a software
-device (`tests/fakedevice.py`).
+device (`tests/fakedevice.py`). When the Medplum test project exists (`python3 medplum/setup.py project
+--test`, see [medplum/README.md](../medplum/README.md)) it also maps, validates and loads into Medplum and
+reads the values back. `tests/test_e2e_simulator.py` does the same with the real app and real HealthKit
+data in the Simulator (macOS with Xcode; see [docs/ci.md](../docs/ci.md)).
+
+FHIR: `hka fhir map` and `hka fhir load` ([docs/fhir-mapping.md](../docs/fhir-mapping.md)). `hka` reads
+`HKA_*` settings (`HKA_FHIR_URL`, `HKA_FHIR_CLIENT_ID`, `HKA_FHIR_CLIENT_SECRET`, ...) from `.env` in the
+current folder; variables already set in the environment win.

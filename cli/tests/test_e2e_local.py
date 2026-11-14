@@ -1,23 +1,22 @@
 """End to end against the real Worker under `wrangler dev` (local D1/R2, no Cloudflare account).
 
-Runs only with HKA_E2E=1. Needs the Worker's node_modules (cd worker && npm ci) and an arm64
-Node; set HKA_NODE_BIN to its bin directory if `node` on PATH is not the right one.
+Runs only with HKA_E2E=1. Needs the Worker's node_modules (cd worker && npm ci) and Node 24; set
+HKA_NODE_BIN to its bin directory if `node` on PATH is not the right one. With a test Medplum project
+(python3 medplum/setup.py project --test) the processor's output also goes through FHIR: map, Medplum's
+validator, load, read back, delete.
 """
 from __future__ import annotations
 
 import json
 import os
-import shutil
-import socket
 import subprocess
 import tempfile
-import time
 import unittest
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from hka import build as B
+from hka import fhir as F
 from hka import pull as P
 from hka.store import Store, create_identity
 from hkacommon.client import Client
@@ -25,15 +24,8 @@ from hkacommon.documents import make_invite, new_user_id
 from hkacommon.encoding import format_instant
 from hkacommon.keys import SigningKey, fingerprint
 
+from e2e_support import WORKER, LocalRelay, Medplum, map_and_validate, medplum_settings
 from fakedevice import FakeDevice, sample
-
-WORKER = Path(__file__).resolve().parents[2] / "worker"
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 @unittest.skipUnless(os.environ.get("HKA_E2E") == "1", "set HKA_E2E=1 to run against wrangler dev")
@@ -41,41 +33,14 @@ class EndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.port = free_port()
-        cls.origin = f"http://localhost:{cls.port}"
         cls.admin = SigningKey.generate()
-        env = dict(os.environ)
-        if os.environ.get("HKA_NODE_BIN"):
-            env["PATH"] = os.environ["HKA_NODE_BIN"] + os.pathsep + env["PATH"]
-        persist = str(Path(cls.tmp.name) / "wrangler-state")
-        wrangler = [str(WORKER / "node_modules" / ".bin" / "wrangler")]
-        subprocess.run(wrangler + ["d1", "migrations", "apply", "hka", "--local", "--persist-to", persist],
-                       cwd=WORKER, env=env, check=True, capture_output=True)
-        admin_keys = json.dumps({cls.admin.id("a"): cls.admin.pub_b64u})
-        cls.log = open(Path(cls.tmp.name) / "wrangler.log", "w")
-        cls.proc = subprocess.Popen(
-            wrangler + ["dev", "--port", str(cls.port), "--ip", "127.0.0.1", "--persist-to", persist,
-                        "--var", f"ORIGIN:{cls.origin}", "--var", f"ADMIN_KEYS:{admin_keys}"],
-            cwd=WORKER, env=env, stdout=cls.log, stderr=subprocess.STDOUT)
-        deadline = time.time() + 60
-        while time.time() < deadline:
-            try:
-                urllib.request.urlopen(cls.origin + "/v1/nope", timeout=2)
-            except urllib.error.HTTPError:
-                return
-            except OSError:
-                time.sleep(0.5)
-        cls.tearDownClass()
-        raise RuntimeError("wrangler dev did not start; see " + str(Path(cls.tmp.name) / "wrangler.log"))
+        cls.relay = LocalRelay(cls.admin)
+        cls.origin = cls.relay.origin
+        cls.medplum = medplum_settings()
 
     @classmethod
     def tearDownClass(cls):
-        cls.proc.terminate()
-        try:
-            cls.proc.wait(10)
-        except subprocess.TimeoutExpired:
-            cls.proc.kill()
-        cls.log.close()
+        cls.relay.stop()
         cls.tmp.cleanup()
 
     def test_full_flow(self):
@@ -94,7 +59,8 @@ class EndToEnd(unittest.TestCase):
 
         self.assertEqual(dev.upload_grant(self.origin, *dev.make_grant([me.card]))[0], 200)
         s1 = dev.seal([sample("HKQuantityTypeIdentifierHeartRate", "2026-11-12T01:00:00.000Z", value=60, unit="count/min")])
-        s2 = dev.seal([sample("HKQuantityTypeIdentifierStepCount", "2026-11-12T02:00:00.000Z", value=1234)])
+        steps_rec = sample("HKQuantityTypeIdentifierStepCount", "2026-11-12T02:00:00.000Z", value=1234)
+        s2 = dev.seal([steps_rec])
         self.assertEqual(dev.upload(self.origin, s2)[0], 200)  # out of order
         self.assertEqual(dev.upload(self.origin, s1)[0], 200)
         self.assertEqual(dev.upload(self.origin, s1)[0], 200)  # idempotent
@@ -110,8 +76,11 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(summary["totals"]["HKQuantityTypeIdentifierStepCount"]["value"], 1234)
         self.assertEqual(summary["heart_rate"]["max"], 60)
 
+        if self.medplum:
+            self.fhir_round_trip(store, me, client, dev, user, steps_rec, now)
+
         users = admin.get("/v1/admin/users")["users"]
-        self.assertEqual(users[0]["devices"][0]["max_seq"], 2)
+        self.assertEqual(users[0]["devices"][0]["max_seq"], 3 if self.medplum else 2)  # + the deletion batch
         self.assertEqual(admin.post(f"/v1/admin/devices/{dev.device_id}/retire"), {"status": "retired"})
         s3 = dev.seal([sample("HKQuantityTypeIdentifierHeartRate", "2026-11-12T03:00:00.000Z")])
         self.assertEqual(dev.upload(self.origin, s3), (403, {"error": "device_inactive", "message": "device is not active",
@@ -159,6 +128,42 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(summary["heart_rate"]["max"], 65)
         sleep = json.loads((store.user_dir(user) / "days/2026/2026-11-12/summary.json").read_text())["sleep"]
         self.assertEqual(sleep["stages_min"], {"asleepCore": 360.0})
+        if self.medplum:
+            map_and_validate(self, store, user)
+            self.assertEqual(F.load_user(store, user, Medplum(self.medplum).client, F.DEFAULT_BASE)["errors"], [])
+            fhir = Medplum(self.medplum)
+            self.assertEqual(fhir.observation(f"{user}/2026-11-12/hr-max")["valueQuantity"]["value"], 65)
+            self.assertEqual(fhir.observation(f"{user}/2026-11-12/sleep")["valueQuantity"]["value"], 360.0)
+
+    def fhir_round_trip(self, store, me, client, dev, user, steps_rec, now):
+        """Map, validate, load into the test Medplum, read back; then a deletion on the phone removes it there."""
+        fhir = Medplum(self.medplum)
+        map_and_validate(self, store, user)
+        report = F.load_user(store, user, fhir.client, F.DEFAULT_BASE)
+        self.assertEqual(report["errors"], [])
+        self.assertGreater(report["loaded"], 0)
+        steps_id = f"{user}/2026-11-12/HKQuantityTypeIdentifierStepCount"
+        steps = fhir.observation(steps_id)
+        self.assertEqual(steps["valueQuantity"], {"value": 1234, "unit": "/d", "system": F.UCUM, "code": "/d"})
+        self.assertEqual(fhir.observation(f"{user}/2026-11-12/hr-max")["valueQuantity"]["value"], 60)
+        patient = fhir.search("Patient", identifier=f"{F.DEFAULT_BASE}/identifier/hka-user|{user}")
+        self.assertEqual(patient[0]["name"][0]["text"], "Mẹ")
+        self.assertTrue(steps["subject"]["reference"].startswith("Patient/"))  # conditional reference resolved
+        cs = fhir.search("CodeSystem", url=f"{F.DEFAULT_BASE}/CodeSystem/hka-metrics")
+        self.assertEqual(cs[0]["version"], F.MAPPING_VERSION)
+        # Loading again changes nothing.
+        self.assertEqual(F.load_user(store, user, fhir.client, F.DEFAULT_BASE)["loaded"], 0)
+
+        # The step sample is deleted in Health: the deletion travels to the server.
+        gone = dev.seal([{"k": "deleted", "uuid": steps_rec["uuid"], "type": "HKQuantityTypeIdentifierStepCount",
+                          "observed_at": format_instant(now)}])
+        self.assertEqual(dev.upload(self.origin, gone)[0], 200)
+        self.assertEqual(P.pull(store, me, client, now).alarms, [])
+        self.assertEqual(B.build(store, me, now).errors, [])
+        map_and_validate(self, store, user)
+        self.assertEqual(F.load_user(store, user, fhir.client, F.DEFAULT_BASE)["errors"], [])
+        self.assertIsNone(fhir.observation(steps_id))
+        self.assertIsNotNone(fhir.observation(f"{user}/2026-11-12/hr-max"))
 
 
 if __name__ == "__main__":

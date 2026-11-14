@@ -28,6 +28,14 @@ xcodebuild -project ios/HealthBackup.xcodeproj -scheme HealthBackup -sdk iphones
 The cross-language end-to-end test (`cli/tests/test_e2e_local.py`) runs `hka-swift-device` against the
 real Worker under `wrangler dev` and decrypts its batches with the Python processor.
 
+The Simulator end-to-end test (`cli/tests/test_e2e_simulator.py`, UI tests in `UITests/`) runs the real
+app: `App/DebugSeed.swift` writes a known day into the Simulator's Health store (steps, heart rate, sleep
+stages, a running workout with a GPS route, a pickleball workout, weight, blood pressure, glucose, VO2 max,
+water, a mindful session), the UI test allows Health access in the system sheet, and the app enrols, reads
+HealthKit and uploads; the processor and Medplum must then hold exactly the seeded values. A second step
+deletes the weigh-in in Health and taps Back Up Now; the deletion must reach Medplum. It needs Xcode's
+first-launch components (`sudo xcodebuild -runFirstLaunch`; see [docs/ci.md](../docs/ci.md)).
+
 Debug builds read these launch variables (all compiled out of release builds), so every screen can be
 captured with `xcrun simctl io <sim> screenshot` without tapping:
 
@@ -37,6 +45,7 @@ captured with `xcrun simctl io <sim> screenshot` without tapping:
 | `HKA_DEBUG_PREFILL` | Open the Join screen for this invite without enrolling |
 | `HKA_DEBUG_SCREEN` | `scan-invite`, `scan-card`, `add-card` (card from `HKA_DEBUG_CARD2`), `processor`, `bottom`, `resend`, `start-over`, `error` |
 | `HKA_DEBUG_REMOVE`, `HKA_DEBUG_REJECT` | Open the remove dialog on the processor screen; show the invalid-code message in the scanner |
+| `HKA_DEBUG_SEED` | `1`: write the test day into HealthKit (removing earlier seed data first); `delete-weight`: delete the seeded weigh-in. Debug builds also carry a Health *write* description for this; release builds never ask to write. |
 
 ## Languages
 
@@ -48,7 +57,7 @@ written by `HKACore` stay English and appear only as a detail under a translated
 After changing UI text, build and check that every string has a translation:
 
 ```sh
-python3 ios/tools/check-strings.py /private/tmp/claude-501/hka-dd   # the derived data path used to build
+python3 ios/tools/check-strings.py <derived data folder>   # the -derivedDataPath you built with
 ```
 
 To see the app in Vietnamese in the Simulator: `xcrun simctl launch <sim> app.hka.healthbackup -AppleLanguages "(vi)" -AppleLocale vi_VN`.

@@ -363,8 +363,23 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def load_env_file(path: Path) -> None:
+    """Take HKA_* settings from a .env file (as written by medplum/setup.py). Variables already set win."""
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return
+    for line in lines:
+        key, sep, value = line.strip().partition("=")
+        key = key.strip()
+        if sep and key.startswith("HKA_") and key not in os.environ:
+            os.environ[key] = value.strip().strip('"').strip("'")
+
+
 def main(argv: list[str] | None = None) -> int:
     os.umask(0o077)  # day folders and the index hold plaintext health data
+    if argv is None:  # a real command line; callers that pass argv (tests) keep their own environment
+        load_env_file(Path(".env"))
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)

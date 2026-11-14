@@ -1,0 +1,47 @@
+{
+ "resourceType": "Observation",
+ "id": "blood-glucose",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000305"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "laboratory"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "2339-0",
+    "display": "Glucose [Mass/volume] in Blood"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKQuantityTypeIdentifierBloodGlucose"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectiveDateTime": "2026-11-12T08:00:00.000+07:00",
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 97.284,
+  "unit": "mg/dL",
+  "system": "http://unitsofmeasure.org",
+  "code": "mg/dL"
+ }
+}

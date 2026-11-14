@@ -1,0 +1,16 @@
+{
+ "resourceType": "Device",
+ "id": "example",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/hka-source",
+   "value": "u_example/com.apple.health.WATCH"
+  }
+ ],
+ "deviceName": [
+  {
+   "name": "Apple Watch",
+   "type": "user-friendly-name"
+  }
+ ]
+}

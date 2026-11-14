@@ -7,6 +7,9 @@ name = "healthkit-archive"
 version = "0.1.0"
 description = "Processor and admin CLIs for the healthkit-archive relay (see ../spec)"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["../LICENSE", "../NOTICE"]
+authors = [{ name = "Hiếu Phạm" }]
 dependencies = [
   "cryptography>=44",   # P-256 signatures (deterministic signing needs 44+)
   "pyrage>=1.4",        # age decryption
@@ -19,3 +22,6 @@ hka-admin = "hka_admin.cli:main"
 
 [tool.setuptools]
 packages = ["hkacommon", "hka", "hka_admin"]
+
+[tool.setuptools.package-data]
+hka = ["terminology/*.json"]   # FHIR CodeSystems and ValueSet, loaded by `hka fhir load`

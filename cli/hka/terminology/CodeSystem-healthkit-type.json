@@ -1,0 +1,2717 @@
+{
+ "resourceType": "CodeSystem",
+ "id": "healthkit-type",
+ "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+ "version": "0.4.0",
+ "name": "HealthKitType",
+ "title": "Apple HealthKit type identifiers",
+ "status": "draft",
+ "experimental": false,
+ "publisher": "healthkit-archive",
+ "description": "The HealthKit type identifiers the healthkit-archive app reads. Every Observation carries its HealthKit type as a coding in this system, so it can be traced back to the source type. The `kind` property gives the HealthKit class and `mapping` how the type appears in FHIR. The codes are Apple's identifier strings; their meaning is defined by Apple's HealthKit documentation.",
+ "caseSensitive": true,
+ "content": "complete",
+ "property": [
+  {
+   "code": "kind",
+   "type": "string",
+   "description": "quantity, category, correlation, workout or data (series and other objects)."
+  },
+  {
+   "code": "mapping",
+   "type": "string",
+   "description": "How hka fhir map represents values of this type."
+  }
+ ],
+ "count": 192,
+ "concept": [
+  {
+   "code": "HKQuantityTypeIdentifierStepCount",
+   "display": "Step count",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: LOINC 41950-7 in /d."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceWalkingRunning",
+   "display": "Walking and running distance",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: LOINC 41953-1 in m."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceCycling",
+   "display": "Distance cycling",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: hka-metrics distance-cycling-daily in m."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceSwimming",
+   "display": "Distance swimming",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceWheelchair",
+   "display": "Distance wheelchair",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceDownhillSnowSports",
+   "display": "Distance downhill snow sports",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceCrossCountrySkiing",
+   "display": "Distance cross country skiing",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistancePaddleSports",
+   "display": "Distance paddle sports",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceRowing",
+   "display": "Distance rowing",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDistanceSkatingSports",
+   "display": "Distance skating sports",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierPushCount",
+   "display": "Push count",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierSwimmingStrokeCount",
+   "display": "Swimming stroke count",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierFlightsClimbed",
+   "display": "Flights climbed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: LOINC 93833-2 in {#}."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierNikeFuel",
+   "display": "NikeFuel",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierActiveEnergyBurned",
+   "display": "Active energy burned",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: hka-metrics active-energy-daily in kcal."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBasalEnergyBurned",
+   "display": "Basal energy burned",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: hka-metrics basal-energy-daily in kcal."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleExerciseTime",
+   "display": "Exercise time",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Daily total (one source) as one Observation per day: hka-metrics exercise-minutes-daily in min."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleMoveTime",
+   "display": "Move time",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleStandTime",
+   "display": "Stand time",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierPhysicalEffort",
+   "display": "Physical effort",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierCyclingCadence",
+   "display": "Cycling cadence",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierCyclingPower",
+   "display": "Cycling power",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierCyclingSpeed",
+   "display": "Cycling speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierCyclingFunctionalThresholdPower",
+   "display": "Cycling functional threshold power",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRunningSpeed",
+   "display": "Running speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRunningPower",
+   "display": "Running power",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRunningStrideLength",
+   "display": "Running stride length",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRunningVerticalOscillation",
+   "display": "Running vertical oscillation",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRunningGroundContactTime",
+   "display": "Running ground contact time",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierCrossCountrySkiingSpeed",
+   "display": "Cross country skiing speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierPaddleSportsSpeed",
+   "display": "Paddle sports speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRowingSpeed",
+   "display": "Rowing speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWorkoutEffortScore",
+   "display": "Workout effort score",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierEstimatedWorkoutEffortScore",
+   "display": "Estimated workout effort score",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeight",
+   "display": "Height",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 8302-2 in cm, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBodyMass",
+   "display": "Body mass",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 29463-7 in kg, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBodyMassIndex",
+   "display": "Body mass index",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 39156-5 in kg/m2, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierLeanBodyMass",
+   "display": "Lean body mass",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 91557-9 in kg, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBodyFatPercentage",
+   "display": "Body fat percentage",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 41982-0 in %, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWaistCircumference",
+   "display": "Waist circumference",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 8280-0 in cm, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+   "display": "Sleeping wrist temperature",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeartRate",
+   "display": "Heart rate",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Per day: hka-metrics hr-minute-mean (valueSampledData, 1-minute means), and LOINC 8883-1 / 8873-2 for the day minimum and maximum. Individual samples stay in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRestingHeartRate",
+   "display": "Resting heart rate",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 40443-4 in /min, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWalkingHeartRateAverage",
+   "display": "Walking heart rate average",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+   "display": "Heart rate variability (SDNN)",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 80404-7 in ms, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute",
+   "display": "Heart rate recovery, one minute",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAtrialFibrillationBurden",
+   "display": "Atrial fibrillation burden",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierOxygenSaturation",
+   "display": "Oxygen saturation",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 2708-6 + LOINC 59408-5 in %, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBodyTemperature",
+   "display": "Body temperature",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 8310-5 in Cel, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBasalBodyTemperature",
+   "display": "Basal body temperature",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBloodPressureSystolic",
+   "display": "Blood pressure systolic",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped on its own: a component (LOINC 8480-6 / 8462-4) of the blood-pressure Observation."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBloodPressureDiastolic",
+   "display": "Blood pressure diastolic",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped on its own: a component (LOINC 8480-6 / 8462-4) of the blood-pressure Observation."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierRespiratoryRate",
+   "display": "Respiratory rate",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 9279-1 in /min, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierVO2Max",
+   "display": "VO2 max",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: hka-metrics vo2-max in mL/(kg.min)."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
+   "display": "Peripheral perfusion index",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBloodGlucose",
+   "display": "Blood glucose",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample: LOINC 2339-0 in mg/dL, category laboratory."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierElectrodermalActivity",
+   "display": "Electrodermal activity",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierBloodAlcoholContent",
+   "display": "Blood alcohol content",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierForcedVitalCapacity",
+   "display": "Forced vital capacity",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierForcedExpiratoryVolume1",
+   "display": "Forced expiratory volume in 1 second",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierPeakExpiratoryFlowRate",
+   "display": "Peak expiratory flow rate",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierInhalerUsage",
+   "display": "Inhaler usage",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierInsulinDelivery",
+   "display": "Insulin delivery",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierNumberOfTimesFallen",
+   "display": "Number of times fallen",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierNumberOfAlcoholicBeverages",
+   "display": "Number of alcoholic beverages",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
+   "display": "Sleeping breathing disturbances",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWalkingSpeed",
+   "display": "Walking speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWalkingStepLength",
+   "display": "Walking step length",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
+   "display": "Walking asymmetry percentage",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
+   "display": "Walking double support percentage",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierStairAscentSpeed",
+   "display": "Stair ascent speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierStairDescentSpeed",
+   "display": "Stair descent speed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",
+   "display": "Six minute walk test distance",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+   "display": "Walking steadiness",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierEnvironmentalAudioExposure",
+   "display": "Environmental audio exposure",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeadphoneAudioExposure",
+   "display": "Headphone audio exposure",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierEnvironmentalSoundReduction",
+   "display": "Environmental sound reduction",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierUVExposure",
+   "display": "UV exposure",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierTimeInDaylight",
+   "display": "Time in daylight",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierUnderwaterDepth",
+   "display": "Underwater depth",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierWaterTemperature",
+   "display": "Water temperature",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+   "display": "Dietary energy consumed",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryCarbohydrates",
+   "display": "Dietary carbohydrates",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryProtein",
+   "display": "Dietary protein",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFatTotal",
+   "display": "Dietary fat total",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFatSaturated",
+   "display": "Dietary fat saturated",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFatMonounsaturated",
+   "display": "Dietary fat monounsaturated",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFatPolyunsaturated",
+   "display": "Dietary fat polyunsaturated",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryCholesterol",
+   "display": "Dietary cholesterol",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietarySodium",
+   "display": "Dietary sodium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFiber",
+   "display": "Dietary fiber",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietarySugar",
+   "display": "Dietary sugar",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryWater",
+   "display": "Dietary water",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryCaffeine",
+   "display": "Dietary caffeine",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryCalcium",
+   "display": "Dietary calcium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryIron",
+   "display": "Dietary iron",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryPotassium",
+   "display": "Dietary potassium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminA",
+   "display": "Dietary vitamin a",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminB6",
+   "display": "Dietary vitamin B6",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminB12",
+   "display": "Dietary vitamin B12",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminC",
+   "display": "Dietary vitamin c",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminD",
+   "display": "Dietary vitamin d",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminE",
+   "display": "Dietary vitamin e",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryVitaminK",
+   "display": "Dietary vitamin k",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryMagnesium",
+   "display": "Dietary magnesium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryZinc",
+   "display": "Dietary zinc",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryFolate",
+   "display": "Dietary folate",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryNiacin",
+   "display": "Dietary niacin",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryRiboflavin",
+   "display": "Dietary riboflavin",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryThiamin",
+   "display": "Dietary thiamin",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryPhosphorus",
+   "display": "Dietary phosphorus",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietarySelenium",
+   "display": "Dietary selenium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryCopper",
+   "display": "Dietary copper",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryManganese",
+   "display": "Dietary manganese",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryChromium",
+   "display": "Dietary chromium",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryMolybdenum",
+   "display": "Dietary molybdenum",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryChloride",
+   "display": "Dietary chloride",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryIodine",
+   "display": "Dietary iodine",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryBiotin",
+   "display": "Dietary biotin",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierDietaryPantothenicAcid",
+   "display": "Dietary pantothenic acid",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSleepAnalysis",
+   "display": "Sleep analysis",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per night (ending on the day): LOINC 93832-4 asleep minutes, with stage components 93831-6 deep, 93830-8 core, 93829-0 REM, 93828-2 awake, and hka-metrics sleep-in-bed / sleep-unspecified."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierMindfulSession",
+   "display": "Mindful session",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierAppleStandHour",
+   "display": "Stand hour",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHighHeartRateEvent",
+   "display": "High heart rate event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLowHeartRateEvent",
+   "display": "Low heart rate event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+   "display": "Irregular heart rhythm event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLowCardioFitnessEvent",
+   "display": "Low cardio fitness event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+   "display": "Walking steadiness event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent",
+   "display": "Headphone audio exposure event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent",
+   "display": "Environmental audio exposure event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHandwashingEvent",
+   "display": "Handwashing event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierToothbrushingEvent",
+   "display": "Toothbrushing event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierMenstrualFlow",
+   "display": "Menstrual flow",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierIntermenstrualBleeding",
+   "display": "Intermenstrual bleeding",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierOvulationTestResult",
+   "display": "Ovulation test result",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierCervicalMucusQuality",
+   "display": "Cervical mucus quality",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSexualActivity",
+   "display": "Sexual activity",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierPregnancyTestResult",
+   "display": "Pregnancy test result",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierProgesteroneTestResult",
+   "display": "Progesterone test result",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierContraceptive",
+   "display": "Contraceptive",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLactation",
+   "display": "Lactation",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierPregnancy",
+   "display": "Pregnancy",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierInfrequentMenstrualCycles",
+   "display": "Infrequent menstrual cycles",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierIrregularMenstrualCycles",
+   "display": "Irregular menstrual cycles",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierPersistentIntermenstrualBleeding",
+   "display": "Persistent intermenstrual bleeding",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierProlongedMenstrualPeriods",
+   "display": "Prolonged menstrual periods",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierAbdominalCramps",
+   "display": "Abdominal cramps",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierAcne",
+   "display": "Acne",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierAppetiteChanges",
+   "display": "Appetite changes",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBladderIncontinence",
+   "display": "Bladder incontinence",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBloating",
+   "display": "Bloating",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBreastPain",
+   "display": "Breast pain",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierChestTightnessOrPain",
+   "display": "Chest tightness or pain",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierChills",
+   "display": "Chills",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierConstipation",
+   "display": "Constipation",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierCoughing",
+   "display": "Coughing",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierDiarrhea",
+   "display": "Diarrhea",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierDizziness",
+   "display": "Dizziness",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierDrySkin",
+   "display": "Dry skin",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierFainting",
+   "display": "Fainting",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierFatigue",
+   "display": "Fatigue",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierFever",
+   "display": "Fever",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierGeneralizedBodyAche",
+   "display": "Generalized body ache",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHairLoss",
+   "display": "Hair loss",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHeadache",
+   "display": "Headache",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHeartburn",
+   "display": "Heartburn",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierHotFlashes",
+   "display": "Hot flashes",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLossOfSmell",
+   "display": "Loss of smell",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLossOfTaste",
+   "display": "Loss of taste",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierLowerBackPain",
+   "display": "Lower back pain",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierMemoryLapse",
+   "display": "Memory lapse",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierMoodChanges",
+   "display": "Mood changes",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierNausea",
+   "display": "Nausea",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierNightSweats",
+   "display": "Night sweats",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierPelvicPain",
+   "display": "Pelvic pain",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierRapidPoundingOrFlutteringHeartbeat",
+   "display": "Rapid pounding or fluttering heartbeat",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierRunnyNose",
+   "display": "Runny nose",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierShortnessOfBreath",
+   "display": "Shortness of breath",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSinusCongestion",
+   "display": "Sinus congestion",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSkippedHeartbeat",
+   "display": "Skipped heartbeat",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSleepChanges",
+   "display": "Sleep changes",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSoreThroat",
+   "display": "Sore throat",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierVaginalDryness",
+   "display": "Vaginal dryness",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierVomiting",
+   "display": "Vomiting",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierWheezing",
+   "display": "Wheezing",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierSleepApneaEvent",
+   "display": "Sleep apnea event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCorrelationTypeIdentifierBloodPressure",
+   "display": "Blood pressure (correlation)",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "correlation"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per reading: LOINC 85354-9 panel with 8480-6 systolic and 8462-4 diastolic components."
+    }
+   ]
+  },
+  {
+   "code": "HKCorrelationTypeIdentifierFood",
+   "display": "Food (correlation)",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "correlation"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKWorkoutTypeIdentifier",
+   "display": "Workout",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "workout"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per workout: LOINC 55411-3 duration in min, components 73985-4 activity (text), 55425-3 mean HR, 55426-1 max HR, 55424-6 energy, hka-metrics workout-distance; the route as a GPX DocumentReference in derivedFrom."
+    }
+   ]
+  },
+  {
+   "code": "HKDataTypeIdentifierElectrocardiogram",
+   "display": "Electrocardiogram",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per recording, category procedure: hka-metrics ecg-classification (text), ecg-lead-i (valueSampledData, uV) and LOINC 8867-4 average heart rate."
+    }
+   ]
+  },
+  {
+   "code": "HKDataTypeIdentifierHeartbeatSeries",
+   "display": "Heartbeat series",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKDataTypeIdentifierAudiogram",
+   "display": "Audiogram",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  }
+ ]
+}

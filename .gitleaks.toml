@@ -1,0 +1,13 @@
+# gitleaks: the default rules, plus two narrow exceptions. CI scans the full history with this file.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Protocol test vectors: made-up keys published on purpose so every implementation can check itself (spec/README.md)"
+paths = ['''(^|/)spec/vectors/(keys|age)\.json$''']
+
+[[allowlists]]
+description = "Swift declarations of a key's type (`key: P256.Signing.PrivateKey`), not key material"
+targetRules = ["generic-api-key"]
+regexTarget = "match"
+regexes = ['''key:\s*P256\.Signing\.PrivateKey''']

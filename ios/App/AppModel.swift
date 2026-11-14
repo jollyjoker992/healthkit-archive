@@ -33,6 +33,14 @@ final class AppModel: ObservableObject {
     /// enrols, adds the processor and syncs without typing. Compiled out of release builds.
     func debugAutoEnroll() async {
         let env = ProcessInfo.processInfo.environment
+        if let seed = env["HKA_DEBUG_SEED"] {
+            do {
+                try await DebugSeed.run(seed)
+            } catch {
+                failure = Failure(title: "Debug seed failed", detail: "\(error)")
+                return
+            }
+        }
         guard state == nil, let inviteText = env["HKA_DEBUG_INVITE"] else { return }
         do {
             try await DeviceHost.shared.enroll(invite: try Invite.parse(inviteText), deviceName: "Simulator")

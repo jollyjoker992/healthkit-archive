@@ -1,0 +1,37 @@
+{
+ "resourceType": "Observation",
+ "id": "vo2-max",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000306"
+  }
+ ],
+ "status": "final",
+ "code": {
+  "coding": [
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+    "code": "vo2-max",
+    "display": "VO2 max"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKQuantityTypeIdentifierVO2Max"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectiveDateTime": "2026-11-12T18:00:00.000+07:00",
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 41.3,
+  "unit": "mL/(kg.min)",
+  "system": "http://unitsofmeasure.org",
+  "code": "mL/(kg.min)"
+ }
+}

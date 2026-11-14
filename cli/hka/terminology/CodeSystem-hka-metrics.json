@@ -1,0 +1,324 @@
+{
+ "resourceType": "CodeSystem",
+ "id": "hka-metrics",
+ "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
+ "version": "0.4.0",
+ "name": "HkaMetrics",
+ "title": "HealthKit values without a standard code",
+ "status": "draft",
+ "experimental": false,
+ "publisher": "healthkit-archive",
+ "description": "Codes for Apple HealthKit values that have no correct LOINC code. Values that do have one (steps, heart rate, sleep durations, SpO2, weight and others) use LOINC; see docs/fhir-mapping.md. Each concept states its unit, value type and where the value comes from. Group concepts are not selectable and only organise the codes.",
+ "caseSensitive": true,
+ "hierarchyMeaning": "grouped-by",
+ "content": "complete",
+ "property": [
+  {
+   "code": "notSelectable",
+   "uri": "http://hl7.org/fhir/concept-properties#notSelectable",
+   "type": "boolean",
+   "description": "Group concept; never used as an Observation code."
+  },
+  {
+   "code": "unit",
+   "type": "string",
+   "description": "UCUM unit the value is recorded in. Absent for text values."
+  },
+  {
+   "code": "valueType",
+   "type": "string",
+   "description": "FHIR value type: Quantity, SampledData or CodeableConcept (text only)."
+  },
+  {
+   "code": "source",
+   "type": "string",
+   "description": "Where the value comes from: day-folder file or HealthKit field."
+  }
+ ],
+ "count": 11,
+ "concept": [
+  {
+   "code": "daily-activity",
+   "display": "Daily activity",
+   "definition": "Day totals of cumulative HealthKit quantities that have no matching LOINC code.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "active-energy-daily",
+     "display": "Active energy burned, day total",
+     "definition": "Energy burned above resting metabolism during the local calendar day: the sum of HKQuantityTypeIdentifierActiveEnergyBurned samples from one source (the source with the largest total, or the configured priority). Estimated by the device. LOINC 41979-6 is total calories, not active.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "kcal"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json totals.HKQuantityTypeIdentifierActiveEnergyBurned"
+      }
+     ]
+    },
+    {
+     "code": "basal-energy-daily",
+     "display": "Basal energy burned, day total",
+     "definition": "Resting energy for the local calendar day: the sum of HKQuantityTypeIdentifierBasalEnergyBurned from one source. An estimate from body measurements, not a measured metabolic rate (so not LOINC 69429-9).",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "kcal"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json totals.HKQuantityTypeIdentifierBasalEnergyBurned"
+      }
+     ]
+    },
+    {
+     "code": "exercise-minutes-daily",
+     "display": "Exercise minutes, day total",
+     "definition": "Apple's Exercise ring minutes for the local calendar day: minutes of movement at or above a brisk walk, as judged by Apple Watch. Not split into moderate and vigorous, so LOINC 77592-4 / 77593-2 do not apply.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "min"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json totals.HKQuantityTypeIdentifierAppleExerciseTime"
+      }
+     ]
+    },
+    {
+     "code": "distance-cycling-daily",
+     "display": "Cycling distance, day total",
+     "definition": "Distance cycled during the local calendar day, from one source.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "m"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json totals.HKQuantityTypeIdentifierDistanceCycling"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "heart",
+   "display": "Heart",
+   "definition": "Heart-rate values that no LOINC code describes correctly.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "hr-minute-mean",
+     "display": "Heart rate, 1-minute means",
+     "definition": "Mean of all heart-rate samples (every source) that start in each minute of the local day; one slot per minute (1440, or 1380/1500 on daylight-saving days), E where there is no sample. Not coded LOINC 8867-4: the vital-signs heart-rate profile allows only a Quantity value.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "/min"
+      },
+      {
+       "code": "valueType",
+       "valueString": "SampledData"
+      },
+      {
+       "code": "source",
+       "valueString": "HKQuantityTypeIdentifierHeartRate.ndjson"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "sleep",
+   "display": "Sleep",
+   "definition": "Sleep stages that LOINC has no code for.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "sleep-in-bed",
+     "display": "Time in bed",
+     "definition": "Minutes recorded as HKCategoryValueSleepAnalysis.inBed for the night ending on this day, from the chosen sleep source. In bed is not asleep; it can overlap the stage minutes.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "min"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json sleep.stages_min.inBed"
+      }
+     ]
+    },
+    {
+     "code": "sleep-unspecified",
+     "display": "Asleep, stage not specified",
+     "definition": "Minutes recorded as HKCategoryValueSleepAnalysis.asleepUnspecified (asleep, with no stage) for the night ending on this day. Sources without stage tracking (older watches, phones, many third-party apps) write only this.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "min"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "summary.json sleep.stages_min.asleepUnspecified"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "workout",
+   "display": "Workout",
+   "definition": "Workout figures without a LOINC code.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "workout-distance",
+     "display": "Workout distance",
+     "definition": "Total distance of the workout: the largest of its distance statistics (walking/running, cycling, swimming, and so on), converted to metres.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "m"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "HKWorkoutTypeIdentifier stats.HKQuantityTypeIdentifierDistance*"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "ecg",
+   "display": "Electrocardiogram",
+   "definition": "Apple Watch single-lead ECG recordings.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "ecg-lead-i",
+     "display": "ECG voltage, lead I (Apple Watch)",
+     "definition": "Voltage samples of an Apple Watch ECG, similar to limb lead I, in microvolts at the recorded sampling frequency (period = 1000 / Hz ms). E marks a missing sample.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "uV"
+      },
+      {
+       "code": "valueType",
+       "valueString": "SampledData"
+      },
+      {
+       "code": "source",
+       "valueString": "HKDataTypeIdentifierElectrocardiogram voltages_uv"
+      }
+     ]
+    },
+    {
+     "code": "ecg-classification",
+     "display": "ECG classification",
+     "definition": "Apple's classification of the recording, as the HKElectrocardiogram.Classification case name (sinusRhythm, atrialFibrillation, inconclusiveLowHeartRate, ...). A screening result, not a diagnosis.",
+     "property": [
+      {
+       "code": "valueType",
+       "valueString": "CodeableConcept"
+      },
+      {
+       "code": "source",
+       "valueString": "HKDataTypeIdentifierElectrocardiogram classification"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "code": "fitness",
+   "display": "Fitness",
+   "definition": "Cardio-fitness values without a correct LOINC code.",
+   "property": [
+    {
+     "code": "notSelectable",
+     "valueBoolean": true
+    }
+   ],
+   "concept": [
+    {
+     "code": "vo2-max",
+     "display": "VO2 max",
+     "definition": "Maximal oxygen uptake as estimated by the device (Apple Watch cardio fitness). LOINC 60842-2 is VO2 (oxygen consumption), not VO2 max.",
+     "property": [
+      {
+       "code": "unit",
+       "valueString": "mL/(kg.min)"
+      },
+      {
+       "code": "valueType",
+       "valueString": "Quantity"
+      },
+      {
+       "code": "source",
+       "valueString": "HKQuantityTypeIdentifierVO2Max"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

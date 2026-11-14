@@ -1,0 +1,47 @@
+{
+ "resourceType": "Observation",
+ "id": "weight",
+ "identifier": [
+  {
+   "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/identifier/observation",
+   "value": "00000000-0000-4000-8000-000000000304"
+  }
+ ],
+ "status": "final",
+ "category": [
+  {
+   "coding": [
+    {
+     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+     "code": "vital-signs"
+    }
+   ]
+  }
+ ],
+ "code": {
+  "coding": [
+   {
+    "system": "http://loinc.org",
+    "code": "29463-7",
+    "display": "Body weight"
+   },
+   {
+    "system": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
+    "code": "HKQuantityTypeIdentifierBodyMass"
+   }
+  ]
+ },
+ "subject": {
+  "reference": "Patient/example"
+ },
+ "effectiveDateTime": "2026-11-12T07:30:00.000+07:00",
+ "device": {
+  "reference": "Device/example"
+ },
+ "valueQuantity": {
+  "value": 68.220292,
+  "unit": "kg",
+  "system": "http://unitsofmeasure.org",
+  "code": "kg"
+ }
+}
