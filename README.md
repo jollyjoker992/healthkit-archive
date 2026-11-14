@@ -23,14 +23,14 @@ hka (processor) ◀── downloads, verifies, decrypts
 
 ## Status
 
-Built for one family, by its admin. It works end to end on a development machine; it has not yet been
-used with real phones or a deployed relay.
+Early stage and in active development, built for one family by its admin. Formats, commands and the
+app may still change. Use it with caution, and keep another copy of your Health data until it has
+proven itself for you.
 
-| Part | Verified |
+| Part | Tested by |
 |---|---|
 | Protocol, relay, processor, FHIR | Unit tests, shared test vectors in Swift, TypeScript and Python, and end-to-end tests: the real Worker under `wrangler dev`, the app's Swift core, the processor, and a real Medplum. The required CI runs the relay, processor, FHIR and Python end-to-end parts on every pull request and push to main; the Swift parts run in the manual macOS workflow. |
-| iOS app | Builds for device; runs in the Simulator against a local relay. A UI test writes real HealthKit data in the Simulator and checks it through to Medplum. |
-| Not yet | A deployed Cloudflare relay (R2 checksum and write-once behaviour, CPU time per upload) and the on-device checks in [ios/README.md](ios/README.md): Secure Enclave signing and uploads while locked, background delivery, a full history backfill. |
+| iOS app | A UI test writes real HealthKit data in the Simulator and checks it through a local relay and the processor to Medplum. Checks that need a phone or a deployed relay are listed in [ios/README.md](ios/README.md) and [worker/README.md](worker/README.md). |
 
 ## Repository
 
