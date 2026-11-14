@@ -2,7 +2,7 @@
  "resourceType": "ValueSet",
  "id": "hka-metrics",
  "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/ValueSet/hka-metrics",
- "version": "0.4.0",
+ "version": "0.5.0",
  "name": "HkaMetrics",
  "title": "All selectable hka-metrics codes",
  "status": "draft",

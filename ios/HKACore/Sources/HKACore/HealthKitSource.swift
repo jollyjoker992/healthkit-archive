@@ -18,7 +18,7 @@ public enum HealthCatalog {
         "Height", "BodyMass", "BodyMassIndex", "LeanBodyMass", "BodyFatPercentage", "WaistCircumference",
         "AppleSleepingWristTemperature",
         // vitals
-        "HeartRate", "RestingHeartRate", "WalkingHeartRateAverage", "HeartRateVariabilitySDNN",
+        "HeartRate", "RestingHeartRate", "WalkingHeartRateAverage", "HeartRateVariabilitySDNN", "HeartRateVariabilityRMSSD",
         "HeartRateRecoveryOneMinute", "AtrialFibrillationBurden", "OxygenSaturation", "BodyTemperature",
         "BasalBodyTemperature", "BloodPressureSystolic", "BloodPressureDiastolic", "RespiratoryRate", "VO2Max",
         "PeripheralPerfusionIndex", "BloodGlucose", "ElectrodermalActivity", "BloodAlcoholContent",
@@ -54,7 +54,8 @@ public enum HealthCatalog {
         "LossOfSmell", "LossOfTaste", "LowerBackPain", "MemoryLapse", "MoodChanges", "Nausea", "NightSweats",
         "PelvicPain", "RapidPoundingOrFlutteringHeartbeat", "RunnyNose", "ShortnessOfBreath", "SinusCongestion",
         "SkippedHeartbeat", "SleepChanges", "SoreThroat", "VaginalDryness", "Vomiting", "Wheezing",
-        "SleepApneaEvent",
+        "SleepApneaEvent", "HypertensionEvent", "BleedingDuringPregnancy", "BleedingAfterPregnancy",
+        "BleedingAfterMenopause", "MenopausalState",
     ].map { "HKCategoryTypeIdentifier" + $0 }
 
     public static let correlationIDs = ["HKCorrelationTypeIdentifierBloodPressure", "HKCorrelationTypeIdentifierFood"]
@@ -62,12 +63,22 @@ public enum HealthCatalog {
     public static let ecg = "HKDataTypeIdentifierElectrocardiogram"
     public static let heartbeats = "HKDataTypeIdentifierHeartbeatSeries"
     public static let audiogram = "HKDataTypeIdentifierAudiogram"
+    public static let stateOfMind = "HKDataTypeStateOfMind"
+    public static let gad7 = "HKScoredAssessmentTypeIdentifierGAD7"
+    public static let phq9 = "HKScoredAssessmentTypeIdentifierPHQ9"
+    /// Types sent as `object` records (spec records.md): not counted in headers or the census.
+    public static let objectTypes = [audiogram, stateOfMind, gad7, phq9]
 
     public static func sampleType(_ id: String) -> HKSampleType? {
         if id == workout { return HKObjectType.workoutType() }
         if id == ecg { return HKObjectType.electrocardiogramType() }
         if id == heartbeats { return HKSeriesType.heartbeat() }
         if id == audiogram { return HKObjectType.audiogramSampleType() }
+        if id == stateOfMind || id == gad7 || id == phq9 {
+            guard #available(iOS 18.0, macOS 15.0, *) else { return nil }
+            if id == stateOfMind { return HKObjectType.stateOfMindType() }
+            return HKScoredAssessmentType(id == gad7 ? .GAD7 : .PHQ9)
+        }
         if id.hasPrefix("HKQuantityTypeIdentifier") { return HKQuantityType.quantityType(forIdentifier: .init(rawValue: id)) }
         if id.hasPrefix("HKCategoryTypeIdentifier") { return HKCategoryType.categoryType(forIdentifier: .init(rawValue: id)) }
         if id.hasPrefix("HKCorrelationTypeIdentifier") { return HKCorrelationType.correlationType(forIdentifier: .init(rawValue: id)) }
@@ -76,7 +87,7 @@ public enum HealthCatalog {
 
     /// Every type, in sync order, that exists on this system.
     public static var all: [String] {
-        (quantityIDs + categoryIDs + correlationIDs + [workout, ecg, heartbeats, audiogram]).filter { sampleType($0) != nil }
+        (quantityIDs + categoryIDs + correlationIDs + [workout, ecg, heartbeats] + objectTypes).filter { sampleType($0) != nil }
     }
 
     /// What the app asks permission to read. Correlations are left out: HealthKit refuses (and aborts the
@@ -90,6 +101,16 @@ public enum HealthCatalog {
             if let t = HKObjectType.characteristicType(forIdentifier: c) { set.insert(t) }
         }
         return set
+    }
+
+    /// Types included in a completed authorization request, kept so a type added by an app update is not
+    /// read (and its anchor not committed past existing history) before the member was asked for it.
+    static let requestedKey = "hka.requestedTypes"
+    public static func recordRequested(_ ids: [String] = all, defaults: UserDefaults = .standard) {
+        defaults.set(Array(Set(ids).union(requested(defaults))).sorted(), forKey: requestedKey)
+    }
+    public static func requested(_ defaults: UserDefaults = .standard) -> Set<String> {
+        Set(defaults.stringArray(forKey: requestedKey) ?? [])
     }
 }
 
@@ -107,10 +128,21 @@ public final class HealthKitSource: HealthSource {
     }
 
     public var isReadable: Bool { readable() }
-    public func syncTypes() -> [String] { types }
+    /// Only types the member has been asked about (see `HealthCatalog.recordRequested`).
+    public func syncTypes() -> [String] {
+        let asked = HealthCatalog.requested()
+        return types.filter { asked.contains($0) }
+    }
 
     public func requestAuthorization() async throws {
         try await store.requestAuthorization(toShare: [], read: HealthCatalog.readTypes)
+        HealthCatalog.recordRequested(types)
+    }
+
+    /// True when the catalog has types the member has not been asked about (for example after an update).
+    public func needsAuthorization() async -> Bool {
+        let status = try? await store.statusForAuthorizationRequest(toShare: [], read: HealthCatalog.readTypes)
+        return status == .shouldRequest || !Set(types).isSubset(of: HealthCatalog.requested())
     }
 
     /// Preferred units, asked per type so one type that is not authorized does not lose the others.
@@ -133,10 +165,13 @@ public final class HealthKitSource: HealthSource {
         await loadUnits()
         let previous = anchor.flatMap { try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: $0) }
         let (samples, deleted, newAnchor) = try await anchored(sampleType, anchor: previous, limit: limit)
-        var records: [[String: Any]] = []
-        for s in samples { records += try await serialize(s) }
+        var records = try await serialize(samples)
         let now = Encoding.instant(Date())
-        for d in deleted { records.append(["k": "deleted", "uuid": d.uuid.uuidString, "type": type, "observed_at": now]) }
+        for d in deleted {
+            var r: [String: Any] = ["k": "deleted", "uuid": d.uuid.uuidString, "type": type, "observed_at": now]
+            if let m = d.metadata, !m.isEmpty { r["metadata"] = Self.metadata(m) }
+            records.append(r)
+        }
         let archived = try newAnchor.map { try NSKeyedArchiver.archivedData(withRootObject: $0, requiringSecureCoding: true) }
         return HealthPage(records: records, anchor: archived ?? anchor, more: samples.count + deleted.count >= limit)
     }
@@ -145,9 +180,7 @@ public final class HealthKitSource: HealthSource {
         guard let sampleType = HealthCatalog.sampleType(type) else { return [] }
         await loadUnits()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: .strictStartDate)
-        var records: [[String: Any]] = []
-        for s in try await samples(sampleType, predicate: predicate) { records += try await serialize(s) }
-        return records
+        return try await serialize(try await samples(sampleType, predicate: predicate))
     }
 
     public func census(days: Int, now: Date) async throws -> [[String: Any]] {
@@ -159,7 +192,7 @@ public final class HealthKitSource: HealthSource {
         let df = DateFormatter()
         df.calendar = cal; df.timeZone = cal.timeZone; df.locale = Locale(identifier: "en_US_POSIX"); df.dateFormat = "yyyy-MM-dd"
         var out: [[String: Any]] = []
-        for type in types where type != HealthCatalog.audiogram {  // `object` records are not counted
+        for type in syncTypes() where !HealthCatalog.objectTypes.contains(type) {  // `object` records are not counted
             guard let sampleType = HealthCatalog.sampleType(type) else { continue }
             var byDay: [String: [String]] = [:]
             guard let found = try? await samples(sampleType, predicate: predicate) else { continue }  // not readable
@@ -258,11 +291,14 @@ public final class HealthKitSource: HealthSource {
                     out[k] = ["quantity": q.doubleValue(for: unit), "unit": unit.unitString]
                     break
                 }
-                if out[k] == nil { out[k] = ["unsupported": "HKQuantity"] }
+                if out[k] == nil, let unit = fallbackUnits.first(where: { q.is(compatibleWith: $0) }) {
+                    out[k] = ["quantity": q.doubleValue(for: unit), "unit": unit.unitString]
+                }
+                if out[k] == nil { out[k] = ["unsupported": "HKQuantity", "text": q.description] }
             case let n as NSNumber:
                 if CFGetTypeID(n) == CFBooleanGetTypeID() { out[k] = n.boolValue }
                 else if n.doubleValue.isFinite { out[k] = n }
-            default: out[k] = ["unsupported": String(describing: type(of: v))]
+            default: out[k] = ["unsupported": String(describing: type(of: v)), "text": String(describing: v)]
             }
         }
         return out
@@ -284,7 +320,10 @@ public final class HealthKitSource: HealthSource {
         .lux(),
     ]
 
-    func quantityRecord(_ q: HKQuantitySample) -> [String: Any] {
+    func quantityRecord(_ q: HKQuantitySample) -> [String: Any] { quantityRecordAndUnit(q).0 }
+
+    /// The record and the unit its values are in (nil when no unit fits).
+    func quantityRecordAndUnit(_ q: HKQuantitySample) -> ([String: Any], HKUnit?) {
         var unit = unit(for: q.quantityType)
         if !q.quantity.is(compatibleWith: unit) {  // doubleValue(for:) raises on an incompatible unit
             unit = Self.fallbackUnits.first { q.quantity.is(compatibleWith: $0) } ?? unit
@@ -293,7 +332,7 @@ public final class HealthKitSource: HealthSource {
         r["k"] = "sample"; r["kind"] = "quantity"
         guard q.quantity.is(compatibleWith: unit) else {
             r["value"] = NSNull(); r["unit"] = NSNull(); r["unit_error"] = "no compatible unit"
-            return r
+            return (r, nil)
         }
         r["unit"] = unit.unitString
         let v = q.quantity.doubleValue(for: unit)
@@ -310,13 +349,64 @@ public final class HealthKitSource: HealthSource {
             stats["most_recent_end"] = Encoding.instant(d.mostRecentQuantityDateInterval.end)
             r["stats"] = stats
         }
-        return r
+        return (r, unit)
     }
 
-    func serialize(_ s: HKSample) async throws -> [[String: Any]] {
+    /// Readings of series samples, by sample UUID; `error` is set when the series query failed.
+    struct SeriesReadings {
+        var readings: [UUID: [(DateInterval, HKQuantity)]] = [:]
+        var error: String?
+    }
+
+    /// Serializes a page of samples, reading all series samples' readings with one query per 500 samples.
+    func serialize(_ samples: [HKSample]) async throws -> [[String: Any]] {
+        var series = SeriesReadings()
+        let multi = samples.compactMap { $0 as? HKQuantitySample }.filter { $0.count > 1 }
+        for (type, group) in Dictionary(grouping: multi, by: \.quantityType) {
+            for start in stride(from: 0, to: group.count, by: 500) {
+                let ids = Set(group[start..<min(start + 500, group.count)].map(\.uuid))
+                do {
+                    for (id, values) in try await readings(type, ids) { series.readings[id, default: []] += values }
+                } catch {
+                    series.error = error.localizedDescription
+                }
+            }
+        }
+        var out: [[String: Any]] = []
+        for s in samples { out += try await serialize(s, series: series) }
+        return out
+    }
+
+    func readings(_ type: HKQuantityType, _ ids: Set<UUID>) async throws -> [UUID: [(DateInterval, HKQuantity)]] {
+        try await withCheckedThrowingContinuation { cont in
+            var out: [UUID: [(DateInterval, HKQuantity)]] = [:]
+            let q = HKQuantitySeriesSampleQuery(quantityType: type, predicate: HKQuery.predicateForObjects(with: ids)) {
+                _, quantity, interval, sample, done, error in
+                if let error { cont.resume(throwing: error); return }
+                if let quantity, let interval, let id = sample?.uuid { out[id, default: []].append((interval, quantity)) }
+                if done { cont.resume(returning: out) }
+            }
+            q.includeSample = true
+            q.orderByQuantitySampleStartDate = true
+            store.execute(q)
+        }
+    }
+
+    func serialize(_ s: HKSample, series: SeriesReadings = SeriesReadings()) async throws -> [[String: Any]] {
         switch s {
         case let q as HKQuantitySample:
-            return [quantityRecord(q)]
+            var (r, unit) = quantityRecordAndUnit(q)
+            if q.count > 1, let unit {
+                if let values = series.readings[q.uuid] ?? (series.error == nil ? [] : nil) {
+                    r["series"] = values.map { interval, quantity -> [Any] in
+                        let v = quantity.is(compatibleWith: unit) ? quantity.doubleValue(for: unit) : .nan
+                        return [Encoding.instant(interval.start), Encoding.instant(interval.end), v.isFinite ? v : NSNull()]
+                    }
+                } else {
+                    r["series_error"] = series.error ?? "series not read"
+                }
+            }
+            return [r]
         case let c as HKCategorySample:
             var r = common(c)
             r["k"] = "sample"; r["kind"] = "category"; r["value"] = c.value
@@ -351,9 +441,53 @@ public final class HealthKitSource: HealthSource {
             }
         default:
             var r = common(s)
-            r["k"] = "object"; r["class"] = String(describing: type(of: s)); r["data"] = [String: Any]()
+            r["k"] = "object"; r["class"] = String(describing: type(of: s)); r["data"] = Self.objectData(s)
             return [r]
         }
+    }
+
+    /// Class-specific properties of an `object` record (spec records.md, "From HealthKit to records").
+    static func objectData(_ s: HKSample) -> [String: Any] {
+        func value(_ q: HKQuantity?, _ unit: HKUnit) -> Any {
+            guard let q, q.is(compatibleWith: unit) else { return NSNull() }
+            let v = q.doubleValue(for: unit)
+            return v.isFinite ? v : NSNull()
+        }
+        let dbHL = HKUnit.decibelHearingLevel()
+        if let a = s as? HKAudiogramSample {
+            return ["sensitivity_points": a.sensitivityPoints.map { p -> [String: Any] in
+                var point: [String: Any] = ["frequency_hz": value(p.frequency, .hertz()),
+                                            "left_db_hl": value(p.leftEarSensitivity, dbHL),
+                                            "right_db_hl": value(p.rightEarSensitivity, dbHL)]
+                if #available(iOS 18.1, macOS 15.1, *) {
+                    point["tests"] = p.tests.map { t -> [String: Any] in
+                        var test: [String: Any] = ["sensitivity_db_hl": value(t.sensitivity, dbHL),
+                                                   "conduction": t.type == .air ? "air" : "value_\(t.type.rawValue)",
+                                                   "masked": t.masked,
+                                                   "side": t.side == .left ? "left" : t.side == .right ? "right" : "value_\(t.side.rawValue)"]
+                        if let c = t.clampingRange {
+                            test["clamping"] = ["lower_db_hl": value(c.lowerBound, dbHL), "upper_db_hl": value(c.upperBound, dbHL)]
+                        }
+                        return test
+                    }
+                }
+                return point
+            }]
+        }
+        if #available(iOS 18.0, macOS 15.0, *) {
+            if let m = s as? HKStateOfMind {
+                return ["kind": m.kind == .momentaryEmotion ? "momentaryEmotion" : m.kind == .dailyMood ? "dailyMood" : "value_\(m.kind.rawValue)",
+                        "valence": m.valence, "valence_classification": m.valenceClassification.rawValue,
+                        "labels": m.labels.map(\.rawValue), "associations": m.associations.map(\.rawValue)]
+            }
+            if let g = s as? HKGAD7Assessment {
+                return ["score": g.score, "risk": g.risk.rawValue, "answers": g.answers.map(\.rawValue)]
+            }
+            if let p = s as? HKPHQ9Assessment {
+                return ["score": p.score, "risk": p.risk.rawValue, "answers": p.answers.map(\.rawValue)]
+            }
+        }
+        return [:]
     }
 
     func statsDict(_ all: [HKQuantityType: HKStatistics]) -> [String: Any] {
@@ -362,12 +496,17 @@ public final class HealthKitSource: HealthSource {
             let unit = unit(for: t)
             var d: [String: Any] = ["unit": unit.unitString]
             for (name, q) in [("sum", st.sumQuantity()), ("avg", st.averageQuantity()), ("min", st.minimumQuantity()),
-                              ("max", st.maximumQuantity())] {
+                              ("max", st.maximumQuantity()), ("most_recent", st.mostRecentQuantity())] {
                 if let q, q.is(compatibleWith: unit) {
                     let x = q.doubleValue(for: unit)
                     if x.isFinite { d[name] = x }
                 }
             }
+            if let interval = st.mostRecentQuantityDateInterval() {
+                d["most_recent_start"] = Encoding.instant(interval.start)
+                d["most_recent_end"] = Encoding.instant(interval.end)
+            }
+            if let duration = st.duration()?.doubleValue(for: .second()), duration.isFinite { d["duration_s"] = duration }
             out[t.identifier] = d
         }
         return out
@@ -380,14 +519,22 @@ public final class HealthKitSource: HealthSource {
         r["activity_name"] = Self.activityName(w.workoutActivityType) ?? NSNull()
         r["duration_s"] = w.duration
         r["stats"] = statsDict(w.allStatistics)
-        r["events"] = (w.workoutEvents ?? []).map { e -> [String: Any] in
-            ["type": Self.eventName(e.type), "start": Encoding.instant(e.dateInterval.start),
-             "end": Encoding.instant(e.dateInterval.end), "metadata": Self.metadata(e.metadata)]
-        }
+        r["events"] = Self.events(w.workoutEvents ?? [])
         r["activities"] = w.workoutActivities.map { a -> [String: Any] in
-            ["uuid": a.uuid.uuidString, "activity_type": Int(a.workoutConfiguration.activityType.rawValue),
-             "start": Encoding.instant(a.startDate), "end": Encoding.instant(a.endDate ?? a.startDate),
-             "stats": statsDict(a.allStatistics), "metadata": Self.metadata(a.metadata)]
+            let c = a.workoutConfiguration
+            var activity: [String: Any] = [
+                "uuid": a.uuid.uuidString, "activity_type": Int(c.activityType.rawValue),
+                "activity_name": Self.activityName(c.activityType) ?? NSNull(),
+                "location_type": ["unknown", "indoor", "outdoor"][safe: c.locationType.rawValue - 1] ?? "value_\(c.locationType.rawValue)",
+                "start": Encoding.instant(a.startDate), "end": a.endDate.map(Encoding.instant) ?? NSNull(),
+                "duration_s": a.duration, "events": Self.events(a.workoutEvents),
+                "stats": statsDict(a.allStatistics), "metadata": Self.metadata(a.metadata)]
+            if c.swimmingLocationType != .unknown {
+                activity["swimming_location_type"] = c.swimmingLocationType == .pool ? "pool"
+                    : c.swimmingLocationType == .openWater ? "openWater" : "value_\(c.swimmingLocationType.rawValue)"
+            }
+            if let lap = c.lapLength?.doubleValue(for: .meter()), lap.isFinite { activity["lap_length_m"] = lap }
+            return activity
         }
         var routeList: [(HKWorkoutRoute, [[Any]])] = []
         do {
@@ -400,9 +547,11 @@ public final class HealthKitSource: HealthSource {
         for (route, points) in routeList {
             let chunks = stride(from: 0, to: max(points.count, 1), by: 5000).map { Array(points[$0..<min($0 + 5000, points.count)]) }
             for (i, chunk) in chunks.enumerated() {
+                let base = common(route)
                 out.append(["k": "route", "uuid": route.uuid.uuidString, "workout_uuid": w.uuid.uuidString, "part": i,
                             "parts": chunks.count, "start": Encoding.instant(route.startDate),
-                            "end": Encoding.instant(route.endDate), "points": chunk])
+                            "end": Encoding.instant(route.endDate), "points": chunk,
+                            "source": base["source"]!, "device": base["device"]!, "metadata": base["metadata"]!])
             }
         }
         return out
@@ -430,7 +579,9 @@ public final class HealthKitSource: HealthSource {
                                    opt(l.horizontalAccuracy, valid: l.horizontalAccuracy >= 0),
                                    opt(l.verticalAccuracy, valid: l.verticalAccuracy >= 0), opt(l.speed, valid: l.speed >= 0),
                                    opt(l.course, valid: l.course >= 0), opt(l.speedAccuracy, valid: l.speedAccuracy >= 0),
-                                   opt(l.courseAccuracy, valid: l.courseAccuracy >= 0)])
+                                   opt(l.courseAccuracy, valid: l.courseAccuracy >= 0),
+                                   opt(l.ellipsoidalAltitude, valid: l.verticalAccuracy >= 0),
+                                   l.floor.map { $0.level as Any } ?? NSNull()])
                 }
                 if done { cont.resume(returning: points) }
             }
@@ -485,6 +636,13 @@ public final class HealthKitSource: HealthSource {
             var r = base
             r["part"] = i; r["parts"] = chunks.count; r["beats"] = chunk
             return r
+        }
+    }
+
+    static func events(_ events: [HKWorkoutEvent]) -> [[String: Any]] {
+        events.map { e in
+            ["type": eventName(e.type), "start": Encoding.instant(e.dateInterval.start),
+             "end": Encoding.instant(e.dateInterval.end), "metadata": metadata(e.metadata)]
         }
     }
 

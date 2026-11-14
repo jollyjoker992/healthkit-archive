@@ -20,7 +20,9 @@ Common conventions:
   them. Values keep their type: strings and numbers as JSON strings and
   numbers, booleans as JSON booleans, dates as `{"date":"<instant>"}`,
   `HKQuantity` as `{"quantity":<number>,"unit":"<HK unit string>"}`. Any other
-  value is `{"unsupported":"<type name>"}`.
+  value (or a quantity in no known unit) is
+  `{"unsupported":"<type name>","text":"<its description>"}`, so the value
+  is kept as text.
 
 ## Header (first line, exactly one)
 
@@ -71,7 +73,8 @@ One HealthKit sample (quantity, category or correlation).
  "stats":{"HKQuantityTypeIdentifierHeartRate":{"unit":"count/min","avg":148,"min":102,"max":171},
           "HKQuantityTypeIdentifierActiveEnergyBurned":{"unit":"kcal","sum":402.1}},
  "events":[{"type":"lap","start":"…","end":"…","metadata":{}}],
- "activities":[{"uuid":"…","activity_type":37,"start":"…","end":"…","stats":{},"metadata":{}}],
+ "activities":[{"uuid":"…","activity_type":37,"activity_name":"running","location_type":"outdoor",
+                 "start":"…","end":"…","duration_s":900.0,"events":[],"stats":{},"metadata":{}}],
  "source":{…},"device":{…},"metadata":{…}}
 ```
 
@@ -87,7 +90,8 @@ A workout route (`HKWorkoutRoute`), split into parts of at most 5,000 points.
 
 ```json
 {"k":"route","uuid":"…","workout_uuid":"…","part":0,"parts":3,"start":"…","end":"…",
- "points":[[1794556800123,10.7769,106.7009,12.5,4.0,3.0,2.9,181.2,0.5,10.0]]}
+ "points":[[1794556800123,10.7769,106.7009,12.5,4.0,3.0,2.9,181.2,0.5,10.0,-0.8,null]],
+ "source":{…},"device":{…},"metadata":{…}}
 ```
 
 Deleting a workout deletes its routes: processors remove records whose `workout_uuid` is a deleted
@@ -97,7 +101,9 @@ window (48 hours), not through anchored changes, in version 1.
 `start` and `end` are those of the whole route (the `HKWorkoutRoute` sample),
 repeated in every part. Each point is `[epoch_ms, latitude, longitude,
 altitude_m, horizontal_accuracy_m, vertical_accuracy_m, speed_mps, course_deg,
-speed_accuracy_mps, course_accuracy_deg]`; unavailable values are `null`.
+speed_accuracy_mps, course_accuracy_deg, ellipsoidal_altitude_m, floor]`; unavailable values are
+`null`. `source`,
+`device` and `metadata` are the route sample's, as for `sample`.
 
 ## ecg
 
@@ -111,7 +117,8 @@ ECG voltages are split into parts of at most 5,000 measurements, in order; a mea
 Lead I value is `null`, so positions stay aligned with the sampling frequency.
 
 A workout, ECG or heartbeat record whose series could not be read carries `"series_error":"<text>"`
-and an empty series; a quantity sample whose value has no compatible unit carries
+and an empty series (a workout: no `route` records); a quantity sample with `count` > 1 whose readings
+could not be read carries `series_error` and no `series`; a quantity sample whose value has no compatible unit carries
 `"unit_error":"<text>"` with `value` and `unit` null. Both are kept rather than dropped.
 
 ## heartbeats
@@ -127,8 +134,8 @@ Each beat is `[seconds_since_start, preceded_by_gap]`.
 
 ## object
 
-Any other HealthKit object (audiogram, state of mind, medication dose event,
-vision prescription, clinical record, …), kept generically.
+Any other HealthKit object (audiogram, state of mind, scored assessment, …),
+kept generically.
 
 ```json
 {"k":"object","class":"HKAudiogramSample","type":"…","uuid":"…","start":"…","end":"…",
@@ -143,8 +150,11 @@ exported in version 1.
 ## deleted
 
 ```json
-{"k":"deleted","uuid":"…","type":"HKQuantityTypeIdentifierHeartRate","observed_at":"…"}
+{"k":"deleted","uuid":"…","type":"HKQuantityTypeIdentifierHeartRate","observed_at":"…","metadata":{…}}
 ```
+
+`metadata`, optional: the deleted object's metadata when HealthKit keeps any (for example a sync
+identifier and version).
 
 One per `HKDeletedObject` returned by an anchored query.
 
@@ -198,6 +208,7 @@ writers.
 | Record | HealthKit query |
 |---|---|
 | `sample`, `workout`, `ecg`, `heartbeats`, `object`, `deleted` | `HKAnchoredObjectQuery` per type, from the last committed anchor (reason `sync`, `backfill`); `HKSampleQuery` on start date for the re-send window (reason `resend`) |
+| `sample` `series` | `HKQuantitySeriesSampleQuery` with `includeSample` and `orderByQuantitySampleStartDate`, once per type for up to 500 series samples of a page (`predicateForObjects(with:)`) |
 | `route` | `HKSampleQuery` for `HKSeriesType.workoutRoute()` with `predicateForObjects(from: workout)`, then `HKWorkoutRouteQuery` for the points |
 | `ecg` voltages | `HKElectrocardiogramQuery` |
 | `heartbeats` beats | `HKHeartbeatSeriesQuery` |
@@ -218,10 +229,11 @@ writers.
 | `metadata` | `HKObject.metadata`, converted value by value (below) |
 
 Metadata values: `String` as is; `Date` as `{"date":…}`; `NSNumber` booleans as `true`/`false`, other
-numbers as numbers (non-finite dropped); `HKQuantity` as `{"quantity","unit"}` in the first compatible
-unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, otherwise
-`{"unsupported":"HKQuantity"}`; anything else (arrays, dictionaries, other classes) as
-`{"unsupported":"<Swift type name>"}`.
+numbers as numbers (non-finite numbers are dropped: JSON cannot carry them); `HKQuantity` as `{"quantity","unit"}` in the first compatible
+unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, then of the sample unit
+list below; a quantity in none of them, and anything else, as
+`{"unsupported":"<Swift type name>","text":"<description>"}` (HealthKit allows only strings, numbers,
+dates and quantities, so this is a safety net).
 
 ### sample
 
@@ -233,7 +245,7 @@ unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, oth
 | `value_name` | `HKCategoryTypeIdentifierSleepAnalysis` only: `inBed`, `asleepUnspecified`, `awake`, `asleepCore`, `asleepDeep`, `asleepREM`. Other category types carry only the integer; its meaning is the type's HealthKit enum (`HKCategoryValue…`) |
 | `count` | `HKQuantitySample.count` when greater than 1 |
 | `stats` | `HKDiscreteQuantitySample` with `count` > 1: `minimumQuantity`, `maximumQuantity`, `averageQuantity`, `mostRecentQuantity`, `mostRecentQuantityDateInterval`, in `unit` |
-| `series` | Not produced in version 1: a sample aggregating a series is sent with `count` and its total or `stats` only |
+| `series` | When `count` > 1: every quantity from `HKQuantitySeriesSampleQuery` for this sample, as `[start, end, value]` in `unit`. If the query fails, the record carries `series_error` and no `series`; a successful query with no readings gives `"series":[]` |
 | `objects` | `HKCorrelation.objects`, quantity members only, each serialized as a quantity `sample` without `k` |
 
 ### workout
@@ -243,9 +255,9 @@ unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, oth
 | `activity_type` | `HKWorkout.workoutActivityType.rawValue` |
 | `activity_name` | The case name for about 30 common types (running, walking, cycling, swimming, hiking, pickleball, tennis, badminton, strength training, yoga, …), otherwise `null`; `activity_type` is always set |
 | `duration_s` | `HKWorkout.duration` |
-| `stats` | `HKWorkout.allStatistics`, per quantity type: `sumQuantity`, `averageQuantity`, `minimumQuantity`, `maximumQuantity` where HealthKit provides them, in the type's `unit` |
+| `stats` | `HKWorkout.allStatistics`, per quantity type: `sum`, `avg`, `min`, `max`, `most_recent` (with `most_recent_start`, `most_recent_end`) where HealthKit provides them, in the type's `unit`, and `duration_s` |
 | `events` | `workoutEvents`: type name (`pause`, `resume`, `lap`, `marker`, `motionPaused`, `motionResumed`, `segment`, `pauseOrResumeRequest`), `dateInterval`, metadata |
-| `activities` | `workoutActivities` (iOS 16+, multisport and interval workouts): `uuid`, `workoutConfiguration.activityType.rawValue`, dates, `allStatistics`, metadata |
+| `activities` | `workoutActivities` (iOS 16+, multisport and interval workouts): `uuid`; from `workoutConfiguration`: `activity_type`, `activity_name`, `location_type` (`unknown`, `indoor`, `outdoor`), `swimming_location_type` (`pool`, `openWater`, when known) and `lap_length_m`; `start`, `end` (`null` while unfinished), `duration_s`, `events` (as above), `stats` (as above), metadata |
 | `series_error` | Set when the workout's routes could not be read; the workout is sent without routes |
 
 ### route
@@ -253,8 +265,10 @@ unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, oth
 One record per part of each `HKWorkoutRoute` of the workout, sent right after the workout record.
 Each point is a `CLLocation`: `timestamp` (epoch ms, truncated), `coordinate.latitude`,
 `coordinate.longitude`, `altitude`, `horizontalAccuracy`, `verticalAccuracy`, `speed`, `course`,
-`speedAccuracy`, `courseAccuracy`. A value whose accuracy (or itself, for speed and course) is negative,
-which Core Location uses for "invalid", is `null`; altitude is `null` when `verticalAccuracy` is negative.
+`speedAccuracy`, `courseAccuracy`, `ellipsoidalAltitude`, `floor.level`. A value whose accuracy (or itself, for speed and course) is negative,
+which Core Location uses for "invalid", is `null`; both altitudes are `null` when `verticalAccuracy` is
+negative, and `floor` is `null` when Core Location has no floor. The record also carries the route
+sample's `source`, `device` and `metadata`.
 
 ### ecg
 
@@ -272,14 +286,21 @@ Each beat is one callback of `HKHeartbeatSeriesQuery`: `[timeSinceSeriesStart, p
 
 ### object
 
-Version 1 uses `object` only for `HKAudiogramSample`, and sends `class`, the common fields and an empty
-`data`: the hearing thresholds (`sensitivityPoints`) are not exported yet.
+`class` is the Swift class name; `type` and the common fields are as above; `data` holds:
+
+| Class (`type`) | `data` |
+|---|---|
+| `HKAudiogramSample` (`HKDataTypeIdentifierAudiogram`) | `sensitivity_points`: per `HKAudiogramSensitivityPoint`, `frequency_hz`, `left_db_hl`, `right_db_hl` (dB HL or `null`), and on iOS 18.1+ `tests`: per `HKAudiogramSensitivityTest`, `sensitivity_db_hl`, `conduction` (`air`), `masked`, `side` (`left`, `right`) and `clamping` (`lower_db_hl`, `upper_db_hl`) when set |
+| `HKStateOfMind` (`HKDataTypeStateOfMind`, iOS 18+) | `kind` (`momentaryEmotion`, `dailyMood`), `valence` (−1 to 1), `valence_classification`, `labels`, `associations`: raw values of Apple's `HKStateOfMind.ValenceClassification`, `.Label` and `.Association` |
+| `HKGAD7Assessment`, `HKPHQ9Assessment` (`HKScoredAssessmentTypeIdentifierGAD7`, `…PHQ9`, iOS 18+) | `score`, `risk` and `answers`: raw values of Apple's `Risk` and `Answer` enums for that questionnaire, answers in question order |
+
+An unknown enum value is sent as `value_<raw>` where a name is used. Another class would arrive with
+an empty `data`; the app only requests the types above.
 
 ### deleted
 
 `HKDeletedObject.uuid` from the anchored query; `type` is the type queried, and `observed_at` is when
-the app read the deletion (HealthKit does not say when it happened). Deleted object metadata is not
-sent.
+the app read the deletion (HealthKit does not say when it happened); `metadata` as above.
 
 ### profile
 
@@ -297,11 +318,30 @@ app may not read is omitted; a profile with no readable field is not sent.
 
 ### What is not exported in version 1
 
-- The individual quantities of a series sample (`series`), and audiogram thresholds (above).
-- Which samples belong to a workout (HealthKit's workout associations); processors match by time and
-  source.
-- Files in `HKAttachmentStore`, clinical records, medications and other types the app does not request
-  (see `HealthCatalog` for the requested list).
+Every property HealthKit gives for the types the app reads is exported (values that JSON cannot carry,
+such as non-finite numbers, excepted), except these links and labels:
+
+- Which samples belong to a workout (HealthKit's workout associations) and which effort score rates
+  which workout (`HKWorkoutEffortRelationship`). The samples themselves are exported; processors match
+  them to a workout by time and source.
+- Names for category values other than sleep, and for State of Mind and questionnaire enums: the raw
+  integer is exported, and its meaning is Apple's enum for that type.
+
+A type is read only after the member was asked for it: the app records which types its authorization
+requests covered, asks again at launch when an update added types, and leaves new types out of syncing
+until then, so their anchors cannot move past history the member has not yet allowed. A type the member
+denied and allows later in Settings gets its history with "Re-send all history".
+
+Records are immutable to processors (first copy wins, see below), so records archived by an earlier app
+version are not upgraded with the fields added here; re-sending history does not change them either.
+
+Types the app does not read at all (they need a different kind of permission):
+
+- Medications and medication dose events (iOS 26; the member picks medications one by one).
+- Clinical records and verifiable health records (a separate entitlement and Apple review).
+- Vision prescriptions (per-object permission) and files in `HKAttachmentStore`; CDA documents.
+- Activity ring summaries (`HKActivitySummary`): their values come from samples the app does read; the
+  move, exercise and stand goals do not.
 
 ## Identity of a record
 

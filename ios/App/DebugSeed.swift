@@ -24,11 +24,12 @@ enum DebugSeed {
         let quantities: [HKQuantityTypeIdentifier] = [
             .stepCount, .distanceWalkingRunning, .activeEnergyBurned, .heartRate, .restingHeartRate,
             .heartRateVariabilitySDNN, .oxygenSaturation, .respiratoryRate, .bodyMass, .height,
-            .bloodPressureSystolic, .bloodPressureDiastolic, .bloodGlucose, .vo2Max, .dietaryWater,
+            .bloodPressureSystolic, .bloodPressureDiastolic, .bloodGlucose, .vo2Max, .dietaryWater, .cyclingCadence,
         ]
         var set = Set<HKSampleType>(quantities.map { q($0) })
         set.formUnion([HKCategoryType(.sleepAnalysis), HKCategoryType(.mindfulSession), HKObjectType.workoutType(),
-                       HKSeriesType.workoutRoute()])
+                       HKSeriesType.workoutRoute(), HKObjectType.audiogramSampleType()])
+        if #available(iOS 18.0, *) { set.insert(HKObjectType.stateOfMindType()) }
         return set
     }
 
@@ -50,6 +51,7 @@ enum DebugSeed {
             return
         }
         try await store.requestAuthorization(toShare: shareTypes, read: HealthCatalog.readTypes)
+        HealthCatalog.recordRequested()
         switch mode {
         case "delete-weight":
             let ours = HKQuery.predicateForObjects(withMetadataKey: marker, allowedValues: ["weight"])
@@ -121,9 +123,30 @@ enum DebugSeed {
         samples += night.map { HKCategorySample(type: sleep, value: $0.0.rawValue, start: $0.1, end: $0.2, metadata: meta("sleep")) }
         samples.append(HKCategorySample(type: HKCategoryType(.mindfulSession), value: HKCategoryValue.notApplicable.rawValue,
                                         start: at(21), end: at(21, 10), metadata: meta("mindful")))
+        // A hearing test: thresholds must arrive in full (spec records.md `object`).
+        let dbHL = HKUnit.decibelHearingLevel()
+        let point = try HKAudiogramSensitivityPoint(frequency: HKQuantity(unit: .hertz(), doubleValue: 1000),
+                                                    leftEarSensitivity: HKQuantity(unit: dbHL, doubleValue: 15),
+                                                    rightEarSensitivity: HKQuantity(unit: dbHL, doubleValue: 20))
+        samples.append(HKAudiogramSample(sensitivityPoints: [point], start: at(11), end: at(11, 5), metadata: meta("audiogram")))
+        if #available(iOS 18.0, *) {
+            samples.append(HKStateOfMind(date: at(20), kind: .dailyMood, valence: 0.4, labels: [.happy, .calm],
+                                         associations: [.family], metadata: meta("mood")))
+        }
         try await store.save(samples)
+        try await cadenceSeries()
         try await workout(.running, from: at(6, 30), to: at(7, 10), route: true, meters: 6000, kcal: 380)
         try await workout(.pickleball, from: at(16), to: at(17, 30), route: false, meters: 3100, kcal: 520)
+    }
+
+    /// One series sample of five cadence readings (count 5): each reading must arrive, not only the summary.
+    static func cadenceSeries() async throws {
+        let builder = HKQuantitySeriesSampleBuilder(healthStore: store, quantityType: q(.cyclingCadence), startDate: at(13), device: nil)
+        for i in 0..<5 {
+            try builder.insert(HKQuantity(unit: HKUnit.count().unitDivided(by: .minute()), doubleValue: Double(80 + i)),
+                               at: at(13, i))
+        }
+        _ = try await builder.finishSeries(metadata: meta("cadence"), endDate: at(13, 5))
     }
 
     /// A workout through HKWorkoutBuilder (statistics computed by HealthKit), with a GPS route for running.

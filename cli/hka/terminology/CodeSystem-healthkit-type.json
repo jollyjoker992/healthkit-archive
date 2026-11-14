@@ -2,7 +2,7 @@
  "resourceType": "CodeSystem",
  "id": "healthkit-type",
  "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
- "version": "0.4.0",
+ "version": "0.5.0",
  "name": "HealthKitType",
  "title": "Apple HealthKit type identifiers",
  "status": "draft",
@@ -23,7 +23,7 @@
    "description": "How hka fhir map represents values of this type."
   }
  ],
- "count": 192,
+ "count": 201,
  "concept": [
   {
    "code": "HKQuantityTypeIdentifierStepCount",
@@ -652,6 +652,20 @@
     {
      "code": "mapping",
      "valueString": "One Observation per sample: LOINC 80404-7 in ms, category vital-signs."
+    }
+   ]
+  },
+  {
+   "code": "HKQuantityTypeIdentifierHeartRateVariabilityRMSSD",
+   "display": "Heart rate variability (RMSSD)",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "quantity"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."
     }
    ]
   },
@@ -2630,6 +2644,76 @@
    ]
   },
   {
+   "code": "HKCategoryTypeIdentifierHypertensionEvent",
+   "display": "Hypertension event",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBleedingDuringPregnancy",
+   "display": "Bleeding during pregnancy",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBleedingAfterPregnancy",
+   "display": "Bleeding after pregnancy",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierBleedingAfterMenopause",
+   "display": "Bleeding after menopause",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
+   "code": "HKCategoryTypeIdentifierMenopausalState",
+   "display": "Menopausal state",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "category"
+    },
+    {
+     "code": "mapping",
+     "valueString": "One Observation per sample, coded with this HealthKit type only, valueCodeableConcept.text = the HealthKit value name."
+    }
+   ]
+  },
+  {
    "code": "HKCorrelationTypeIdentifierBloodPressure",
    "display": "Blood pressure (correlation)",
    "property": [
@@ -2702,6 +2786,48 @@
   {
    "code": "HKDataTypeIdentifierAudiogram",
    "display": "Audiogram",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKDataTypeStateOfMind",
+   "display": "State of mind",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKScoredAssessmentTypeIdentifierGAD7",
+   "display": "GAD-7 anxiety assessment",
+   "property": [
+    {
+     "code": "kind",
+     "valueString": "data"
+    },
+    {
+     "code": "mapping",
+     "valueString": "Not mapped to FHIR; kept in the day folder."
+    }
+   ]
+  },
+  {
+   "code": "HKScoredAssessmentTypeIdentifierPHQ9",
+   "display": "PHQ-9 depression assessment",
    "property": [
     {
      "code": "kind",

@@ -25,6 +25,11 @@ final class AppModel: ObservableObject {
         #if DEBUG
         await debugAutoEnroll()
         #endif
+        // An update can add types: ask for them before they are read, so their history is not skipped.
+        if state != nil {
+            let source = await DeviceHost.shared.source(readable: { true })
+            if await source.needsAuthorization() { try? await source.requestAuthorization() }
+        }
         started = true
     }
 

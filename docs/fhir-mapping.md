@@ -1,4 +1,4 @@
-# FHIR mapping (version 0.4.0)
+# FHIR mapping (version 0.5.0)
 
 How the processor's day folders (`users/<user>/days/YYYY/YYYY-MM-DD/`) become FHIR R4 resources. This is
 the specification that `hka fhir map` implements (`cli/hka/fhir.py`). FHIR is a view: it can be rebuilt
@@ -39,7 +39,7 @@ Resources have no `id`. References between them use the conditional form
 |---|---|
 | [`cli/hka/terminology/CodeSystem-hka-metrics.json`](../cli/hka/terminology/CodeSystem-hka-metrics.json) | 11 codes in 6 groups for values with no correct LOINC code. Each has a definition, its UCUM unit, its FHIR value type and its source. |
 | [`cli/hka/terminology/ValueSet-hka-metrics.json`](../cli/hka/terminology/ValueSet-hka-metrics.json) | Every selectable code of that CodeSystem. |
-| [`cli/hka/terminology/CodeSystem-healthkit-type.json`](../cli/hka/terminology/CodeSystem-healthkit-type.json) | The 192 HealthKit type identifiers the app reads, with their kind and how each is mapped. |
+| [`cli/hka/terminology/CodeSystem-healthkit-type.json`](../cli/hka/terminology/CodeSystem-healthkit-type.json) | The 201 HealthKit type identifiers the app reads, with their kind and how each is mapped. |
 | [`fhir/examples/`](../fhir/examples/) | One resource per pattern below, produced by the real mapper from made-up records. |
 
 The terminology ships inside the CLI package, so `hka fhir load` finds it however the CLI is installed.
@@ -311,13 +311,14 @@ one, including those that also have LOINC.
   meters capillary blood (41653-7), but HealthKit does not record the specimen.
 - LOINC 80404-7 is SDNN; Apple's `HeartRateVariabilitySDNN` is SDNN, so it fits (garmin-archive rejects it
   because Garmin reports RMSSD).
-- The heart-rate series pools all sources and ignores multi-sample `series` details.
+- The heart-rate series pools all sources and uses each sample's value; the individual readings of a
+  series sample (`series`) stay in the day folder.
 
 ## Not mapped (kept in the day folders)
 
 | Data | Reason |
 |---|---|
-| Heartbeat series, audiograms, other `object` records | FHIR has no type that keeps them usefully; the day folder has them in full. |
+| Heartbeat series, audiograms, State of Mind, GAD-7 and PHQ-9 assessments (`object` records) | Not mapped yet; the day folder has them in full. |
 | Food correlations | Their nutrient samples are mapped one by one. |
 | Standalone blood-pressure systolic / diastolic samples | They are the correlation's members, mapped there. |
 | Routes without their workout | No workout to attach them to. |

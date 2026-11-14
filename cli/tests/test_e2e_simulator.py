@@ -152,6 +152,17 @@ class SimulatorEndToEnd(unittest.TestCase):
         self.assertAlmostEqual(si(weight[0], "kg"), 68.5, places=2)
         bp = lines(day / "HKCorrelationTypeIdentifierBloodPressure.ndjson")
         self.assertEqual(sorted(o["value"] for o in bp[0]["objects"]), [76, 118])
+        # Nothing summarised away: audiogram thresholds, State of Mind, every reading of a series sample.
+        audiogram = lines(day / "HKDataTypeIdentifierAudiogram.ndjson")
+        self.assertEqual(len(audiogram), 1)
+        point = audiogram[0]["data"]["sensitivity_points"][0]
+        self.assertEqual((point["frequency_hz"], point["left_db_hl"], point["right_db_hl"]), (1000, 15, 20))
+        mood = lines(day / "HKDataTypeStateOfMind.ndjson")
+        self.assertEqual(len(mood), 1)
+        self.assertEqual((mood[0]["data"]["kind"], mood[0]["data"]["valence"]), ("dailyMood", 0.4))
+        cadence = lines(day / "HKQuantityTypeIdentifierCyclingCadence.ndjson")
+        self.assertEqual([len(cadence), cadence[0].get("count")], [1, 5])
+        self.assertEqual([v for _, _, v in cadence[0]["series"]], [80, 81, 82, 83, 84])
 
         fhir = Medplum(self.medplum) if self.medplum else None
         if fhir:

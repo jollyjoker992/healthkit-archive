@@ -54,6 +54,64 @@ final class SerializerTests: XCTestCase {
         XCTAssertTrue(members.allSatisfy { $0["k"] == nil && $0["unit"] as? String == "mmHg" })
     }
 
+    func testMetadataKeepsEveryQuantity() async throws {
+        let sample = HKQuantitySample(type: HKQuantityType(.stepCount), quantity: HKQuantity(unit: .count(), doubleValue: 5),
+                                      start: start, end: start,
+                                      metadata: ["pressure": HKQuantity(unit: .millimeterOfMercury(), doubleValue: 12),
+                                                 "lux": HKQuantity(unit: .lux(), doubleValue: 300)])
+        let meta = try roundTrip(try await source.serialize(sample))[0]["metadata"] as! [String: [String: Any]]
+        XCTAssertEqual(meta["pressure"]?["unit"] as? String, "mmHg")
+        XCTAssertEqual(meta["pressure"]?["quantity"] as? Double, 12)
+        XCTAssertEqual(meta["lux"]?["quantity"] as? Double, 300)
+    }
+
+    func testAudiogramKeepsThresholds() async throws {
+        let dbHL = HKUnit.decibelHearingLevel()
+        let point = try HKAudiogramSensitivityPoint(frequency: HKQuantity(unit: .hertz(), doubleValue: 1000),
+                                                    leftEarSensitivity: HKQuantity(unit: dbHL, doubleValue: 15),
+                                                    rightEarSensitivity: HKQuantity(unit: dbHL, doubleValue: 20))
+        let sample = HKAudiogramSample(sensitivityPoints: [point], start: start, end: start, metadata: nil)
+        let r = try roundTrip(try await source.serialize(sample))[0]
+        XCTAssertEqual(r["k"] as? String, "object")
+        XCTAssertEqual(r["type"] as? String, HealthCatalog.audiogram)
+        let p = try XCTUnwrap(((r["data"] as? [String: Any])?["sensitivity_points"] as? [[String: Any]])?.first)
+        XCTAssertEqual(p["frequency_hz"] as? Double, 1000)
+        XCTAssertEqual(p["left_db_hl"] as? Double, 15)
+        XCTAssertEqual(p["right_db_hl"] as? Double, 20)
+    }
+
+    func testStateOfMindAndAssessments() async throws {
+        guard #available(macOS 15.0, *) else { throw XCTSkip("needs macOS 15") }
+        let mood = HKStateOfMind(date: start, kind: .dailyMood, valence: 0.4, labels: [.happy, .calm], associations: [.family])
+        let m = try roundTrip(try await source.serialize(mood))[0]
+        XCTAssertEqual(m["type"] as? String, HealthCatalog.stateOfMind)
+        let md = try XCTUnwrap(m["data"] as? [String: Any])
+        XCTAssertEqual(md["kind"] as? String, "dailyMood")
+        XCTAssertEqual(md["valence"] as? Double, 0.4)
+        XCTAssertEqual(md["labels"] as? [Int], [HKStateOfMind.Label.happy.rawValue, HKStateOfMind.Label.calm.rawValue])
+        XCTAssertEqual(md["associations"] as? [Int], [HKStateOfMind.Association.family.rawValue])
+
+        let gad = HKGAD7Assessment(date: start, answers: Array(repeating: .severalDays, count: 7))
+        let g = try roundTrip(try await source.serialize(gad))[0]
+        XCTAssertEqual(g["type"] as? String, HealthCatalog.gad7)
+        let gd = try XCTUnwrap(g["data"] as? [String: Any])
+        XCTAssertEqual(gd["score"] as? Int, 7)
+        XCTAssertEqual((gd["answers"] as? [Int])?.count, 7)
+        XCTAssertNotNil(gd["risk"] as? Int)
+    }
+
+    func testTypesAreReadOnlyAfterTheMemberWasAsked() {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: HealthCatalog.requestedKey)
+        defer { defaults.set(saved, forKey: HealthCatalog.requestedKey) }
+        defaults.removeObject(forKey: HealthCatalog.requestedKey)
+        XCTAssertEqual(source.syncTypes(), [])
+        HealthCatalog.recordRequested(["HKQuantityTypeIdentifierStepCount"])
+        XCTAssertEqual(source.syncTypes(), ["HKQuantityTypeIdentifierStepCount"])
+        HealthCatalog.recordRequested()
+        XCTAssertEqual(source.syncTypes(), HealthCatalog.all)
+    }
+
     func testCatalogTypesAllExist() {
         XCTAssertGreaterThan(HealthCatalog.all.count, 150)
         XCTAssertTrue(HealthCatalog.all.contains("HKWorkoutTypeIdentifier"))

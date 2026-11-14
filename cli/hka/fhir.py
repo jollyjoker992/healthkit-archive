@@ -33,7 +33,7 @@ from . import days as D
 from .build import read_lines
 from .store import Store, atomic_write, instant, read_json, write_json
 
-MAPPING_VERSION = "0.4.0"
+MAPPING_VERSION = "0.5.0"
 DEFAULT_BASE = "https://github.com/jollyjoker992/healthkit-archive/fhir"
 UCUM = "http://unitsofmeasure.org"
 LOINC_SYSTEM = "http://loinc.org"
@@ -594,9 +594,17 @@ HK_DISPLAY = {
     "HKDataTypeIdentifierElectrocardiogram": "Electrocardiogram",
     "HKDataTypeIdentifierHeartbeatSeries": "Heartbeat series",
     "HKDataTypeIdentifierAudiogram": "Audiogram",
+    "HKDataTypeStateOfMind": "State of mind",
+    "HKScoredAssessmentTypeIdentifierGAD7": "GAD-7 anxiety assessment",
+    "HKScoredAssessmentTypeIdentifierPHQ9": "PHQ-9 depression assessment",
+    "HKQuantityTypeIdentifierHeartRateVariabilityRMSSD": "Heart rate variability (RMSSD)",
 }
+# Sent as `object` records (spec/records.md); kept in the day folders, not mapped.
+OBJECT_TYPES = ("HKDataTypeIdentifierAudiogram", "HKDataTypeStateOfMind", "HKScoredAssessmentTypeIdentifierGAD7",
+                "HKScoredAssessmentTypeIdentifierPHQ9")
 HK_PREFIXES = (("HKQuantityTypeIdentifier", "quantity"), ("HKCategoryTypeIdentifier", "category"),
                ("HKCorrelationTypeIdentifier", "correlation"), ("HKDataTypeIdentifier", "data"),
+               ("HKDataType", "data"), ("HKScoredAssessmentTypeIdentifier", "data"),
                ("HKWorkoutTypeIdentifier", "workout"))
 
 
@@ -649,7 +657,7 @@ def hk_mapping(t: str) -> str:
     if t == "HKDataTypeIdentifierElectrocardiogram":
         return ("One Observation per recording, category procedure: hka-metrics ecg-classification (text), "
                 "ecg-lead-i (valueSampledData, uV) and LOINC 8867-4 average heart rate.")
-    if t in ("HKCorrelationTypeIdentifierFood", "HKDataTypeIdentifierHeartbeatSeries", "HKDataTypeIdentifierAudiogram"):
+    if t in ("HKCorrelationTypeIdentifierFood", "HKDataTypeIdentifierHeartbeatSeries") + OBJECT_TYPES:
         return "Not mapped to FHIR; kept in the day folder."
     if hk_kind(t) == "quantity":
         return "One Observation per sample, coded with this HealthKit type only, value in the UCUM unit of the sample."

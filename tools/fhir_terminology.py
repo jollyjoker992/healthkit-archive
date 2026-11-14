@@ -38,7 +38,7 @@ def catalog() -> list[str]:
     category = ["HKCategoryTypeIdentifier" + n for n in swift_list(text, "categoryIDs")]
     correlation = re.search(r"static let correlationIDs = \[(.*?)\]", text, re.S)
     singles = [re.search(rf'static let {n} = "([^"]+)"', text).group(1)
-               for n in ("workout", "ecg", "heartbeats", "audiogram")]
+               for n in ("workout", "ecg", "heartbeats", "audiogram", "stateOfMind", "gad7", "phq9")]
     return quantity + category + re.findall(r'"([^"]+)"', correlation.group(1)) + singles
 
 
