@@ -20,3 +20,6 @@ tools/fhir-validate/node_modules/
 .swiftpm/
 *.egg-info/
 build/
+
+# Deployment config with this account's ids and origin (see worker/README.md)
+worker/wrangler.deploy.jsonc

@@ -81,7 +81,8 @@ class FakeDevice:
 
     # ------------------------------------------------------------------ HTTP (for a real relay)
     def http(self, origin: str, method: str, path: str, body: bytes, headers: dict[str, str]) -> tuple[int, dict]:
-        req = urllib.request.Request(origin + path, data=body, method=method, headers=headers)
+        req = urllib.request.Request(origin + path, data=body, method=method,
+                                     headers={"User-Agent": "hka-fake-device/1", **headers})
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return resp.status, json.loads(resp.read())

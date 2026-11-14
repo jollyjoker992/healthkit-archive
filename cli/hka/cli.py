@@ -324,7 +324,7 @@ def cmd_fhir_load(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="hka", description=__doc__.split("\n")[0])
     ap.add_argument("--data-dir", help="default $HKA_DATA_DIR or ./data")
-    ap.add_argument("--server", help="relay origin (stored by `hka init --server`)")
+    ap.add_argument("--server", help="relay origin (stored by `hka --server … init`)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("init", help="create this processor's identity")
     p.add_argument("--name", help="name members see on the card (1-64 characters)")

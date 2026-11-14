@@ -38,7 +38,7 @@ def load(args) -> tuple[SigningKey, str]:
     conf = json.loads(conf_path.read_text()) if conf_path.exists() else {}
     server = getattr(args, "server", None) or os.environ.get("HKA_SERVER") or conf.get("server")
     if not server or not ORIGIN_RE.fullmatch(server):
-        raise ConfigError("relay origin not set: pass --server https://… or run `hka-admin init --server …`")
+        raise ConfigError("relay origin not set: pass --server https://… or run `hka-admin --server … init`")
     return SigningKey.load(key_path), server
 
 
