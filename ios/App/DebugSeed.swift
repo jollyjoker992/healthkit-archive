@@ -34,6 +34,21 @@ enum DebugSeed {
 
     static func run(_ mode: String) async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw SeedError("Health data is not available") }
+        if mode.hasPrefix("probe:") {  // ask for types: HealthKit aborts at once on a type an app may not request
+            let ids = Set(mode.dropFirst(6).split(separator: ",").map(String.init))
+            let reads = HealthCatalog.readTypes.sorted { $0.identifier < $1.identifier }
+            var share = Set<HKSampleType>(), read = Set<HKObjectType>()
+            for id in ids {
+                if id.hasPrefix("read:") {  // read:<from>-<to> indexes into the sorted read list
+                    let r = id.dropFirst(5).split(separator: "-").compactMap { Int($0) }
+                    read.formUnion(reads[r[0]..<min(r[1], reads.count)])
+                } else if let t = shareTypes.first(where: { $0.identifier == id }) {
+                    share.insert(t)
+                }
+            }
+            try await store.requestAuthorization(toShare: share, read: read)
+            return
+        }
         try await store.requestAuthorization(toShare: shareTypes, read: HealthCatalog.readTypes)
         switch mode {
         case "delete-weight":

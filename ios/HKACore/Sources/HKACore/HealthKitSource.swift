@@ -79,8 +79,11 @@ public enum HealthCatalog {
         (quantityIDs + categoryIDs + correlationIDs + [workout, ecg, heartbeats, audiogram]).filter { sampleType($0) != nil }
     }
 
+    /// What the app asks permission to read. Correlations are left out: HealthKit refuses (and aborts the
+    /// app on) a request that names a correlation type; permission for their members (systolic, diastolic,
+    /// nutrients) is what lets the app query blood-pressure and food correlations.
     public static var readTypes: Set<HKObjectType> {
-        var set = Set<HKObjectType>(all.compactMap { sampleType($0) })
+        var set = Set<HKObjectType>(all.filter { !correlationIDs.contains($0) }.compactMap { sampleType($0) })
         set.insert(HKSeriesType.workoutRoute())
         for c in [HKCharacteristicTypeIdentifier.dateOfBirth, .biologicalSex, .bloodType, .fitzpatrickSkinType,
                   .wheelchairUse, .activityMoveMode] {

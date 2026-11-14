@@ -23,6 +23,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -163,8 +164,15 @@ class SimulatorEndToEnd(unittest.TestCase):
             self.assertEqual(run["valueQuantity"]["value"], 40.0)
             self.assertIn({"text": "running"}, [c.get("valueCodeableConcept") for c in run["component"]])
             doc = fhir.search("DocumentReference", identifier=f"{F.DEFAULT_BASE}/identifier/document|route/{running['uuid']}")
+            # Medplum serves the stored Binary reference as a signed download URL: the route must download intact.
             url = doc[0]["content"][0]["attachment"]["url"]
-            self.assertTrue(url.startswith("Binary/") or "/Binary/" in url, url)
+            if url.startswith("Binary/"):
+                url = f"{self.medplum['HKA_FHIR_URL']}/fhir/R4/{url}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {fhir.client._token()}"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                gpx = resp.read().decode()
+            self.assertIn("<gpx", gpx)
+            self.assertEqual(gpx.count("<trkpt "), 80)
             self.assertIsNotNone(fhir.observation(weight[0]["uuid"]))
 
         # Deleted in Health: gone from the day folder and from Medplum.
