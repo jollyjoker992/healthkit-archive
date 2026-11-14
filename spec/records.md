@@ -186,6 +186,123 @@ Processors compare a census with their own index, recomputing the day of each
 object from its `start` in the census `tz`; they do not compare it with
 day-folder counts, which use different day rules.
 
+## From HealthKit to records
+
+How the app builds each record from what HealthKit returns. This section describes the reference
+serializer (`ios/HKACore/Sources/HKACore/HealthKitSource.swift`) as of version 1; the sections above
+are the format, and a field listed there but marked "not produced" below may appear from other or later
+writers.
+
+### Queries
+
+| Record | HealthKit query |
+|---|---|
+| `sample`, `workout`, `ecg`, `heartbeats`, `object`, `deleted` | `HKAnchoredObjectQuery` per type, from the last committed anchor (reason `sync`, `backfill`); `HKSampleQuery` on start date for the re-send window (reason `resend`) |
+| `route` | `HKSampleQuery` for `HKSeriesType.workoutRoute()` with `predicateForObjects(from: workout)`, then `HKWorkoutRouteQuery` for the points |
+| `ecg` voltages | `HKElectrocardiogramQuery` |
+| `heartbeats` beats | `HKHeartbeatSeriesQuery` |
+| `profile` | `HKHealthStore` characteristic methods (`dateOfBirthComponents()`, `biologicalSex()`, …) |
+| `census` | `HKSampleQuery` per type over the last 30 local days |
+
+### Fields on every sample-based record
+
+| Field | From |
+|---|---|
+| `uuid` | `HKObject.uuid.uuidString` |
+| `type` | `HKSample.sampleType.identifier` |
+| `start`, `end` | `startDate`, `endDate`, truncated to milliseconds |
+| `source.bundle_id`, `source.name` | `sourceRevision.source.bundleIdentifier`, `.name` |
+| `source.version`, `source.product_type` | `sourceRevision.version`, `.productType`, when present |
+| `source.os_version` | `sourceRevision.operatingSystemVersion` as `major.minor.patch` (always present) |
+| `device` | `HKDevice` properties `name`, `manufacturer`, `model`, `hardwareVersion`, `firmwareVersion`, `softwareVersion`, `localIdentifier`, `udiDeviceIdentifier`; `null` when the sample has no device |
+| `metadata` | `HKObject.metadata`, converted value by value (below) |
+
+Metadata values: `String` as is; `Date` as `{"date":…}`; `NSNumber` booleans as `true`/`false`, other
+numbers as numbers (non-finite dropped); `HKQuantity` as `{"quantity","unit"}` in the first compatible
+unit of `count`, `m`, `s`, `kcal`, `degC`, `%`, `count/min`, `kg`, `dBASPL`, otherwise
+`{"unsupported":"HKQuantity"}`; anything else (arrays, dictionaries, other classes) as
+`{"unsupported":"<Swift type name>"}`.
+
+### sample
+
+| Field | From |
+|---|---|
+| `kind` | `HKQuantitySample` → `quantity`, `HKCategorySample` → `category`, `HKCorrelation` → `correlation` |
+| `unit` | The member's preferred unit for the type (`HKHealthStore.preferredUnits(for:)`, which follows the phone's region and Health settings, for example `lb` or `kg`); if that is unavailable or incompatible, the first compatible unit from a fixed list (`count`, `count/min`, `m`, `kcal`, `s`, `%`, `kg`, `degC`, `mmHg`, `mL`, `W`, `dBASPL`, `ms`, `m/s`, `S`, `Hz`, `mg/dL`, `IU`, `mL/kg·min`, `L/min`, `kcal/kg·hr`, `lx`, and Apple's effort score on iOS 18+) |
+| `value` | quantity: `quantity.doubleValue(for: unit)`; category: `HKCategorySample.value` (the raw integer) |
+| `value_name` | `HKCategoryTypeIdentifierSleepAnalysis` only: `inBed`, `asleepUnspecified`, `awake`, `asleepCore`, `asleepDeep`, `asleepREM`. Other category types carry only the integer; its meaning is the type's HealthKit enum (`HKCategoryValue…`) |
+| `count` | `HKQuantitySample.count` when greater than 1 |
+| `stats` | `HKDiscreteQuantitySample` with `count` > 1: `minimumQuantity`, `maximumQuantity`, `averageQuantity`, `mostRecentQuantity`, `mostRecentQuantityDateInterval`, in `unit` |
+| `series` | Not produced in version 1: a sample aggregating a series is sent with `count` and its total or `stats` only |
+| `objects` | `HKCorrelation.objects`, quantity members only, each serialized as a quantity `sample` without `k` |
+
+### workout
+
+| Field | From |
+|---|---|
+| `activity_type` | `HKWorkout.workoutActivityType.rawValue` |
+| `activity_name` | The case name for about 30 common types (running, walking, cycling, swimming, hiking, pickleball, tennis, badminton, strength training, yoga, …), otherwise `null`; `activity_type` is always set |
+| `duration_s` | `HKWorkout.duration` |
+| `stats` | `HKWorkout.allStatistics`, per quantity type: `sumQuantity`, `averageQuantity`, `minimumQuantity`, `maximumQuantity` where HealthKit provides them, in the type's `unit` |
+| `events` | `workoutEvents`: type name (`pause`, `resume`, `lap`, `marker`, `motionPaused`, `motionResumed`, `segment`, `pauseOrResumeRequest`), `dateInterval`, metadata |
+| `activities` | `workoutActivities` (iOS 16+, multisport and interval workouts): `uuid`, `workoutConfiguration.activityType.rawValue`, dates, `allStatistics`, metadata |
+| `series_error` | Set when the workout's routes could not be read; the workout is sent without routes |
+
+### route
+
+One record per part of each `HKWorkoutRoute` of the workout, sent right after the workout record.
+Each point is a `CLLocation`: `timestamp` (epoch ms, truncated), `coordinate.latitude`,
+`coordinate.longitude`, `altitude`, `horizontalAccuracy`, `verticalAccuracy`, `speed`, `course`,
+`speedAccuracy`, `courseAccuracy`. A value whose accuracy (or itself, for speed and course) is negative,
+which Core Location uses for "invalid", is `null`; altitude is `null` when `verticalAccuracy` is negative.
+
+### ecg
+
+| Field | From |
+|---|---|
+| `classification` | `HKElectrocardiogram.classification` case name (`sinusRhythm`, `atrialFibrillation`, `inconclusiveLowHeartRate`, `inconclusiveHighHeartRate`, `inconclusivePoorReading`, `inconclusiveOther`, `unrecognized`, `notSet`) |
+| `avg_hr` | `averageHeartRate` in count/min, or `null` |
+| `sampling_hz` | `samplingFrequency` in Hz, or `null` |
+| `symptoms` | `symptomsStatus`: `notSet`, `none`, `present`. The symptoms themselves are separate category samples in Health |
+| `voltages_uv` | Each `HKElectrocardiogram.VoltageMeasurement`'s `appleWatchSimilarToLeadI` value in µV, one entry per measurement |
+
+### heartbeats
+
+Each beat is one callback of `HKHeartbeatSeriesQuery`: `[timeSinceSeriesStart, precededByGap]`.
+
+### object
+
+Version 1 uses `object` only for `HKAudiogramSample`, and sends `class`, the common fields and an empty
+`data`: the hearing thresholds (`sensitivityPoints`) are not exported yet.
+
+### deleted
+
+`HKDeletedObject.uuid` from the anchored query; `type` is the type queried, and `observed_at` is when
+the app read the deletion (HealthKit does not say when it happened). Deleted object metadata is not
+sent.
+
+### profile
+
+| Field | From | Values |
+|---|---|---|
+| `date_of_birth` | `dateOfBirthComponents()` | `YYYY-MM-DD`; omitted if unset |
+| `biological_sex` | `biologicalSex()` | `notSet`, `female`, `male`, `other` |
+| `blood_type` | `bloodType()` | `notSet`, `aPositive` … `oNegative` |
+| `fitzpatrick_skin_type` | `fitzpatrickSkinType()` | `notSet`, `I` … `VI` |
+| `wheelchair_use` | `wheelchairUse()` | `notSet`, `no`, `yes` |
+| `activity_move_mode` | `activityMoveMode()` | `activeEnergy`, `appleMoveTime` |
+
+An enum value unknown to the app is sent as `value_<raw>`, so a newer iOS does not lose it. A field the
+app may not read is omitted; a profile with no readable field is not sent.
+
+### What is not exported in version 1
+
+- The individual quantities of a series sample (`series`), and audiogram thresholds (above).
+- Which samples belong to a workout (HealthKit's workout associations); processors match by time and
+  source.
+- Files in `HKAttachmentStore`, clinical records, medications and other types the app does not request
+  (see `HealthCatalog` for the requested list).
+
 ## Identity of a record
 
 - Deduplication is per **user**, across all of that user's devices: HealthKit
