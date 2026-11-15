@@ -121,10 +121,16 @@ class UserBuild:
         self.root.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(self.root / "index.sqlite")
         self.db.executescript(SCHEMA)
-        self.manifest = read_json(self.root / "manifest.json") or {"schema_version": MANIFEST_SCHEMA, "days": {}}
+        # A new archive starts on the current day rules; day folders without a manifest may predate them.
+        self.manifest = read_json(self.root / "manifest.json") or {
+            "schema_version": MANIFEST_SCHEMA, "days": {},
+            **({} if (self.root / "days").is_dir() else {"day_rules": D.DAY_RULES})}
         self.refresh_errors: list[str] = []
         if self.manifest.get("schema_version") != MANIFEST_SCHEMA:
             raise BatchError(f"{self.root / 'manifest.json'}: unsupported schema_version")
+        rules = self.manifest.get("day_rules", 1)
+        if type(rules) is not int or rules < 1 or rules > D.DAY_RULES:
+            raise BatchError(f"{self.root / 'manifest.json'}: day_rules {rules!r} is not a day-rules version this hka understands")
 
     def close(self) -> None:
         self.db.close()
@@ -226,6 +232,102 @@ class UserBuild:
                 ch.moved.append((uuid, part, day))
             elif self.read_line(day, fname, (uuid, part)) is not None:
                 ch.moved.append((uuid, part, day))  # moved by an interrupted run whose index update was lost
+
+    # ------------------------------------------------------------------ day-rule migration
+    def migrate_day_rules(self, identity: Identity | None = None) -> tuple[int, int]:
+        """Move sleep records filed under day rules 1 (each on the calendar date it ends, which split nights at
+        midnight) to the sleep day the current rule gives, then record the version.
+
+        Works from the day files, not the index, so it is also right after the index was rebuilt from the
+        inbox. Each record's zone is the one version 1 used: the zone in the header of the batch it arrived in
+        (the index names the batch), or, when that batch cannot be read, the zone that first filled its day.
+        A record moves only when that zone reproduces where version 1 put it; one that does not stays where
+        it is and is counted as unplaced, never moved somewhere arbitrary.
+
+        Crash-safe like `apply`: additions are written before removals, then the index and dirty days are
+        updated in one transaction, and `day_rules` is saved last. A rerun scans the files again: a record found
+        in two days keeps the copy on its sleep day, and an index row that disagrees with the files is corrected.
+        Returns (records moved, records left unplaced).
+        """
+        if self.manifest.get("day_rules", 1) >= D.DAY_RULES:
+            return 0, 0
+        fname = D.file_name({"type": D.SLEEP})
+        found: dict[tuple[str, int], list[tuple[str, bytes]]] = defaultdict(list)
+        days_dir = self.root / "days"
+        for path in sorted(days_dir.glob(f"*/*/{fname}")) if days_dir.is_dir() else []:
+            for raw in read_lines(path):
+                found[record_key(json.loads(raw))].append((path.parent.name, raw))
+        index = {(u, p): (d, dev, seq) for u, p, d, dev, seq in self.db.execute(
+            "SELECT uuid, part, day, device_id, seq FROM records WHERE type = ? AND day != ?", (D.SLEEP, UNDATED))}
+        zones: dict[tuple[str, int], object] = {}
+        unknown = object()
+
+        def batch_zone(device_id, seq):
+            if identity is None or not isinstance(device_id, str) or not is_int(seq):
+                return unknown
+            if (device_id, seq) not in zones:
+                try:
+                    _, cpath = batch_paths(self.store.device_dir(self.user_id, device_id), seq)
+                    header = decrypt_batch(cpath.read_bytes(), identity)[0].rec
+                    zones[(device_id, seq)] = header.get("tz") if isinstance(header.get("tz"), str) else None
+                except Exception:
+                    zones[(device_id, seq)] = unknown
+            return zones[(device_id, seq)]
+
+        adds: dict[str, list[Line]] = defaultdict(list)
+        removes: dict[str, set[str]] = defaultdict(set)
+        index_fix: list[tuple[str, int, str]] = []
+        touched: set[str] = set()
+        new_day_tz: dict[str, str] = {}
+        moved = unplaced = 0
+        for key, copies in sorted(found.items()):
+            days = sorted({day for day, _ in copies})
+            raw = copies[0][1]
+            rec = json.loads(raw)
+            row = index.get(key)
+            tz = batch_zone(row[1], row[2]) if row else unknown
+            if tz is unknown:
+                tz = self.manifest["days"].get(row[0] if row else days[0], {}).get("tz")
+            new_day = D.assign_day(rec, tz, lambda _uuid: None)
+            rtz = D.record_tz(rec, tz)
+            old_day = D.local_day(rec.get("end"), rtz) or D.local_day(rec.get("start"), rtz)  # rules 1
+            if new_day and (new_day in days or old_day in days):
+                target = new_day
+            else:
+                target = row[0] if row and row[0] in days else days[0]
+                unplaced += new_day is not None and target != new_day
+            if target not in days:
+                adds[target].append(Line(rec, raw))
+                if isinstance(tz, str):
+                    new_day_tz.setdefault(target, tz)
+            for day in days:
+                if day != target:
+                    removes[day].add(key[0])
+            if days != [target]:
+                moved += 1
+                touched |= set(days) | {target}
+            if row and row[0] != target:
+                index_fix.append((key[0], key[1], target))
+                touched |= {row[0], target}
+        for day, add in sorted(adds.items()):
+            self.merge_file(day, fname, add, set())
+        for day, remove in sorted(removes.items()):
+            self.merge_file(day, fname, [], remove)
+        for day, tz in new_day_tz.items():  # saved before the index points at a new day, so a rerun sees its zone
+            self.manifest["days"].setdefault(day, {}).setdefault("tz", tz)
+        self.save()
+        self.commit_moves(index_fix, touched)
+        self.refresh_dirty()
+        self.manifest["day_rules"] = D.DAY_RULES
+        self.save()
+        return moved, unplaced
+
+    def commit_moves(self, moved: list[tuple[str, int, str]], touched: set[str]) -> None:
+        """Point the index at each record's new day and mark every day involved dirty, in one transaction."""
+        with self.db:
+            self.db.executemany("UPDATE records SET day = ? WHERE uuid = ? AND part = ?",
+                                [(day, uuid, part) for uuid, part, day in moved])
+            self.db.executemany("INSERT OR IGNORE INTO dirty_days VALUES (?)", [(d,) for d in sorted(touched)])
 
     def read_line(self, day: str, fname: str, key: tuple[str, int]) -> bytes | None:
         for raw in read_lines(self.day_dir(day) / fname):
@@ -364,7 +466,7 @@ def build_archive(folder: Path, day: str) -> bytes:
     with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as gz:
         with tarfile.open(fileobj=gz, mode="w", format=tarfile.PAX_FORMAT) as tar:
             for path in sorted(folder.iterdir()):
-                if not path.is_file():
+                if not path.is_file() or path.name.startswith("."):  # e.g. Finder's .DS_Store
                     continue
                 info = tarfile.TarInfo(f"{day}/{path.name}")
                 data = path.read_bytes()
@@ -379,6 +481,8 @@ class BuildReport:
     skipped_not_recipient: int = 0
     days_touched: int = 0
     days_finalized: int = 0
+    records_moved: int = 0   # by a day-rule migration
+    records_unplaced: int = 0  # by a day-rule migration: left where they were (zone unknown)
     errors: list[str] = field(default_factory=list)
 
 
@@ -399,6 +503,9 @@ def build(store: Store, identity: Identity, now: datetime) -> BuildReport:
             continue
         try:
             ub.refresh_dirty()  # finish days left dirty by an interrupted run
+            moved, unplaced = ub.migrate_day_rules(identity)
+            report.records_moved += moved
+            report.records_unplaced += unplaced
             for device_id in devices:
                 build_device(store, identity, ub, user_id, device_id, report)
             report.days_finalized += len(ub.finalize())
@@ -444,8 +551,10 @@ def census_mismatches(store: Store, user_id: str) -> list[dict]:
         out = []
         for device_id, type_, day, tz, count, _uuids, _seq in db.execute("SELECT * FROM census ORDER BY day, type"):
             try:
-                lo = (datetime.fromisoformat(day) - timedelta(days=2)).date().isoformat()
-                hi = (datetime.fromisoformat(day) + timedelta(days=2)).date().isoformat()
+                # Records are filed by start (sleep: by the sleep day of its end), so look a few days around.
+                slack = timedelta(days=3 if type_ == D.SLEEP else 2)
+                lo = (datetime.fromisoformat(day) - slack).date().isoformat()
+                hi = (datetime.fromisoformat(day) + slack).date().isoformat()
             except (ValueError, OverflowError, TypeError):
                 continue
             uuids = {u for u, start in db.execute(

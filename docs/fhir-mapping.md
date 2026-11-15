@@ -148,7 +148,7 @@ correlation's members).
 
 ## Sleep
 
-One Observation per night, on the day the night ends. Identifier `<user_id>/<day>/sleep`. Source: the
+One Observation per night, on the day the night ends: sleep records belong to the sleep day running from 18:00 to 18:00 local time, named after its morning ([design §5.4](design.md)), so a night that starts before midnight is one Observation. Sleep ending from 18:00 (an evening nap) belongs to the next day's Observation and widens its `effectivePeriod`. Identifier `<user_id>/<day>/sleep`. Source: the
 chosen sleep source in `summary.json` (one source, so a watch and a sleep app are not added together);
 `effectivePeriod` runs from its first to its last record. Example:
 [`Observation-sleep.json`](../fhir/examples/Observation-sleep.json).

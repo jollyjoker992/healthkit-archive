@@ -107,6 +107,11 @@ def run_build(store: Store) -> int:
     r = B.build(store, store.identity(), now_utc())
     print(f"built {r.batches} batches ({r.skipped_not_recipient} not addressed to this processor), "
           f"{r.days_touched} day updates, {r.days_finalized} days finalized")
+    if r.records_moved:
+        print(f"moved {r.records_moved} sleep records to the sleep day they belong to (day rules {B.D.DAY_RULES})")
+    if r.records_unplaced:
+        print(f"WARNING: {r.records_unplaced} sleep records left where they were: their time zone could not be "
+              "worked out", file=sys.stderr)
     for e in r.errors:
         print(f"ERROR: {e}", file=sys.stderr)
     return EXIT_PARTIAL if r.errors else EXIT_OK
@@ -149,7 +154,8 @@ def status_data(store: Store) -> dict:
             "removed_by_grant": state.get("removed_by_grant"),
         })
     users_dir = store.root / "users"
-    for udir in sorted(users_dir.iterdir()) if users_dir.is_dir() else []:
+    for udir in sorted(p for p in users_dir.iterdir() if p.is_dir() and not p.name.startswith(".")) \
+            if users_dir.is_dir() else []:
         manifest = read_json(udir / "manifest.json", {"days": {}})
         days = manifest.get("days", {})
         out["users"].append({
@@ -259,13 +265,13 @@ def cmd_export(args) -> int:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         undated = store.user_dir(args.user) / "undated"
         if undated.is_dir() and not (args.date_from or args.date_to):
-            for f in sorted(undated.iterdir()):
+            for f in sorted(f for f in undated.iterdir() if f.is_file() and not f.name.startswith(".")):
                 z.write(f, f"{args.user}/undated/{f.name}")
         years = [y for y in days_dir.iterdir() if y.is_dir()] if days_dir.is_dir() else []
         for day in sorted(p for year in years for p in year.iterdir() if p.is_dir()):
             if (args.date_from and day.name < args.date_from) or (args.date_to and day.name > args.date_to):
                 continue
-            files = [f for f in sorted(day.iterdir()) if f.is_file()]
+            files = [f for f in sorted(day.iterdir()) if f.is_file() and not f.name.startswith(".")]
             if not files:
                 continue
             for f in files:

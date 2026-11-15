@@ -258,7 +258,7 @@ The `inbox/` mirror is ciphertext, so it can be copied to a second remote with r
 4. Recompute `summary.json` for touched days; mark them `provisional`.
 5. A day untouched for 7 days becomes `final` and is archived; a late batch reopens it and drops the archive.
 
-Day rules: local calendar date of the sample start in the batch time zone (or the sample's own time-zone metadata); sleep belongs to the day it ends on; a workout belongs to the day it starts.
+Day rules: local calendar date of the sample start in the batch time zone (or the sample's own time-zone metadata); a workout belongs to the day it starts. Sleep belongs to the *sleep day* it ends in: 18:00 to 18:00 local time, named after the morning it ends on, so a night that starts before midnight stays whole (and sleep ending from 18:00, such as an evening nap, counts toward the next night). The archive records its day-rule version in `manifest.json` (`day_rules`); version 1 put each sleep record on the calendar date it ended, splitting such nights at midnight, and `hka build` moves records filed under it once.
 
 `summary.json` holds what Garmin's API gave ready-made: steps, distance and energy totals with one source chosen per type (configurable source priority, to avoid double counting iPhone and watch), heart-rate min/max/resting, sleep-stage minutes, workout list. The FHIR mapper reads mostly this file.
 

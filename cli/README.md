@@ -51,7 +51,7 @@ data/
     batches/<seq>.age                  ciphertext (only batches addressed to this processor)
     state.json                         verified prefix, chain head, gaps, alarms
   users/<user>/
-    manifest.json                      day status, file hashes, archives
+    manifest.json                      day status, file hashes, archives, day-rule version
     index.sqlite                       uuid -> day/file, tombstones, census (rebuildable)
     days/YYYY/YYYY-MM-DD/<HealthKit type>.ndjson, summary.json, _day.json
     archives/YYYY/YYYY-MM-DD.tar.gz    reproducible archive of a final day
@@ -59,6 +59,10 @@ data/
 
 `inbox/` is the immutable, encrypted copy: back it up anywhere. `users/` is derived from it
 and holds plaintext health data.
+
+Records go to the local day they start on, except sleep, which goes to the sleep day it ends in
+(18:00 to 18:00, named after the morning), so a night stays whole across midnight. Archives made before
+this rule (`day_rules` absent from `manifest.json`) are moved to it by the next `hka build`.
 
 ### Restore with stock tools only
 

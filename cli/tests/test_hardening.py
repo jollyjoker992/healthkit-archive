@@ -126,7 +126,9 @@ class MalformedDeviceData(Ready):
         self.assertEqual(len(undated.read_text().splitlines()), 1)
         summary = json.loads((self.store.user_dir(self.user) / "days/2026/2026-11-12/summary.json").read_text())
         self.assertEqual(summary["totals"][STEPS]["source"], "?")
-        self.assertEqual(summary["sleep"]["stages_min"], {"asleepREM": 60.0})
+        # The sleep record ends 23:00 local on the 12th, so it counts for the night ending on the 13th.
+        night = json.loads((self.store.user_dir(self.user) / "days/2026/2026-11-13/summary.json").read_text())
+        self.assertEqual(night["sleep"]["stages_min"], {"asleepREM": 60.0})
 
     def test_boolean_header_version_is_rejected(self):
         dev = self.dev

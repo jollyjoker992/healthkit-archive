@@ -274,6 +274,23 @@ class Build(Harness):
         after = (self.store.user_dir(self.user) / "days/2026/2026-11-12" / f"{HR}.ndjson").read_bytes()
         self.assertEqual(before, after)
 
+    def test_finder_files_are_ignored(self):
+        """macOS Finder drops .DS_Store into folders it shows; status, archives and export skip them."""
+        import zipfile
+        from argparse import Namespace
+        from hka import cli as C
+        self.sync([sample(HR, "2026-11-12T01:00:00.000Z")])
+        day_dir = self.store.user_dir(self.user) / "days/2026/2026-11-12"
+        archive = B.build_archive(day_dir, "2026-11-12")
+        for folder in (self.store.root / "users", day_dir):
+            (folder / ".DS_Store").write_bytes(b"\0Bud1")
+        self.assertEqual([u["user_id"] for u in C.status_data(self.store)["users"]], [self.user])
+        self.assertEqual(B.build_archive(day_dir, "2026-11-12"), archive)
+        out = Path(self.tmp.name) / "export.zip"
+        C.cmd_export(Namespace(data_dir=str(self.store.root), user=self.user, out=str(out), date_from=None,
+                               date_to=None))
+        self.assertFalse(any(".DS_Store" in n for n in zipfile.ZipFile(out).namelist()))
+
 
 if __name__ == "__main__":
     unittest.main()

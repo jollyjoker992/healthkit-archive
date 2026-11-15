@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from hkacommon.encoding import is_instant, parse_instant
@@ -24,6 +24,13 @@ CUMULATIVE = (
     "HKQuantityTypeIdentifierAppleExerciseTime",
 )
 
+# A sleep day runs from 18:00 to 18:00 local time, named after the morning it ends on: sleep that ends
+# from 18:00 onwards counts for the next day. A night that starts before midnight therefore stays whole
+# instead of being split at midnight. Version 1 of the day rules used the calendar date of each record's
+# end, which split such nights; DAY_RULES is stored in the user manifest so old archives are migrated.
+SLEEP_DAY_SHIFT = timedelta(hours=6)
+DAY_RULES = 2
+
 _zones: dict[str, ZoneInfo] = {}
 
 
@@ -37,14 +44,20 @@ def zone(name: str | None) -> ZoneInfo:
     return _zones[key]
 
 
-def local_day(instant: object, tz: object) -> str | None:
-    """Local calendar date of an instant, or None if the instant is not in the protocol's format."""
+def local_day(instant: object, tz: object, shift: timedelta = timedelta(0)) -> str | None:
+    """Local calendar date of an instant (plus `shift`), or None if the instant is not in the protocol's format."""
     if not is_instant(instant):
         return None
     try:
-        return parse_instant(instant).astimezone(zone(tz if isinstance(tz, str) else None)).date().isoformat()
-    except (OverflowError, ValueError):  # e.g. year 1 shifted west of UTC
+        local = parse_instant(instant).astimezone(zone(tz if isinstance(tz, str) else None))
+        return (local + shift).date().isoformat()
+    except (OverflowError, ValueError):  # e.g. year 1 shifted west of UTC, or year 9999 shifted past it
         return None
+
+
+def sleep_day(end: object, tz: object) -> str | None:
+    """The sleep day a sleep record ending at `end` belongs to (see SLEEP_DAY_SHIFT)."""
+    return local_day(end, tz, SLEEP_DAY_SHIFT)
 
 
 def record_tz(rec: dict, batch_tz: str | None) -> str | None:
@@ -65,14 +78,17 @@ def file_name(rec: dict) -> str:
 
 
 def assign_day(rec: dict, batch_tz: str | None, workout_day) -> str | None:
-    """Sleep belongs to the day it ends on; routes to their workout's day; the rest to the day they start."""
+    """Sleep belongs to the sleep day it ends in (18:00 to 18:00, named after the morning); routes to their
+    workout's day; the rest to the day they start."""
     tz = record_tz(rec, batch_tz)
     if rec.get("k") == "route":
         day = workout_day(rec.get("workout_uuid"))
         if day:
             return day
     if rec.get("type") == SLEEP and is_instant(rec.get("end")):
-        return local_day(rec["end"], tz)
+        day = sleep_day(rec["end"], tz)
+        if day:
+            return day
     return local_day(rec.get("start"), tz)
 
 
