@@ -23,3 +23,6 @@ build/
 
 # Deployment config with this account's ids and origin (see worker/README.md)
 worker/wrangler.deploy.jsonc
+
+# Agent tool caches (token, downloaded routes)
+.cache/

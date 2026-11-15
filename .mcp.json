@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "hka-medplum": {
+      "type": "http",
+      "url": "http://localhost:8203/mcp/stream",
+      "headersHelper": "python3 tools/medplum_agent.py headers"
+    }
+  }
+}

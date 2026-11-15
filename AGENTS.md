@@ -19,6 +19,20 @@ normative for the Worker, the CLIs and the app, and `spec/vectors/` must keep pa
   data only into the Medplum test project (`.env.test`), never the real one. `docker compose down -v` in
   `medplum/` deletes every loaded resource: ask first.
 
+## Answering questions about the data: use Medplum, not the day folders
+
+Questions about a family member's health data (steps, sleep, heart rate, weight, workouts, ...) are
+answered from the local Medplum with the read-only agent client, following
+[`.agents/skills/healthkit-health-analysis/SKILL.md`](.agents/skills/healthkit-health-analysis/SKILL.md):
+`python3 tools/medplum_agent.py people|graphql|codes|workouts|workout-hr|route`. Do not open the
+processor's day folders, `fhir/` or `inbox/` to answer a question. If Medplum is not reachable, say so and
+suggest `cd medplum && docker compose up -d`; reading the day folders instead needs the owner's explicit
+OK. The archive holds several people: always know whose data a question is about.
+
+Operating the backup (processor status, alarms, pinning a new phone, FHIR load, `hka-admin`) follows
+[`.agents/skills/healthkit-archive/SKILL.md`](.agents/skills/healthkit-archive/SKILL.md). MCP and other
+agents: [`docs/agents.md`](docs/agents.md).
+
 ## FHIR
 
 `docs/fhir-mapping.md` specifies the mapping. Values with no correct LOINC code use the `hka-metrics`
@@ -41,6 +55,7 @@ Date searches in Medplum must carry the member's UTC offset.
 | App | `ios/App/` | `xcodebuild … -sdk iphonesimulator CODE_SIGN_IDENTITY=- …` |
 | FHIR | `cli/hka/fhir.py`, `cli/hka/terminology/`, `tools/fhir_terminology.py`, `tools/fhir_examples.py` | `cli/tests/test_fhir*.py` |
 | Medplum | `medplum/docker-compose.yml`, `medplum/setup.py` (API on 8203) | `test_e2e_local.py` with the test project |
+| Agents | `.agents/skills/`, `tools/medplum_agent.py` (read-only), `.mcp.json`, `docs/agents.md` | `cli/tests/test_medplum_agent.py` |
 | CI | `.github/workflows/ci.yml` (required, Ubuntu), `macos.yml` (manual, self-hosted) | see `docs/ci.md` |
 
 Node for the Worker and the FHIR validator: arm64 Node 24 (`worker/.nvmrc`). The Simulator test
