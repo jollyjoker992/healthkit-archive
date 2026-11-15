@@ -236,7 +236,21 @@ describe("state and processor reads (6.1)", () => {
   it("state has null grant fields before a grant", async () => {
     await enroll("device 1", await makeInvite());
     const state = await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`));
-    expect(state).toMatchObject({ status: "active", contiguous_seq: 0, max_seq: 0, last_manifest_sha256: null, grant_seq: null, grant_sha256: null });
+    expect(state).toMatchObject({ status: "active", contiguous_seq: 0, max_seq: 0, last_manifest_sha256: null, grant_seq: null, grant_sha256: null,
+      batches: 0, bytes: 0, last_received_at: null, user_bytes: 0 });
+  });
+
+  it("state counts the device's stored batches and the user's total", async () => {
+    const one = await setupDevice("device 1");
+    const two = await setupDevice("device 2");
+    await putBatch("device 1", await one.seal(100), { now: NOW });
+    await putBatch("device 1", await one.seal(50), { now: NOW + 60_000 });
+    await putBatch("device 2", await two.seal(30));
+    const state = await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`));
+    expect(state).toMatchObject({ batches: 2, bytes: 150, last_received_at: new Date(NOW + 60_000).toISOString(), user_bytes: 180 });
+    // A purged device's bytes no longer count for the user.
+    await signedRequest("device 2", "POST", `/v1/devices/${DEVICE_2.id}/purge`);
+    expect((await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`))).user_bytes).toBe(150);
   });
 
   it("streams, grants, batch list and download", async () => {

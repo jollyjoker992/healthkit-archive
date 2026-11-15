@@ -50,6 +50,8 @@ public actor Device {
     /// HealthKit objects per anchored page. Types whose objects carry series are read in small pages.
     var pageLimit = 2000
     static let seriesPageLimit = 25
+    /// Acknowledged uploads kept for the member's upload list.
+    public static let recentUploadLimit = 20
     static let seriesTypes: Set<String> = ["HKWorkoutTypeIdentifier", "HKDataTypeIdentifierElectrocardiogram",
                                            "HKDataTypeIdentifierHeartbeatSeries"]
 
@@ -412,7 +414,13 @@ public actor Device {
         // Only a batch this device sealed and still holds can be acknowledged (a stale result from an
         // earlier enrolment must not mark a new batch as stored).
         guard seq <= state.lastSealedSeq, seq <= state.ackedContiguous || outbox.contains(where: { $0.seq == seq }) else { return }
-        if !state.ackedAbove.contains(seq) && seq > state.ackedContiguous { state.ackedAbove.append(seq) }
+        if !state.ackedAbove.contains(seq) && seq > state.ackedContiguous {
+            state.ackedAbove.append(seq)
+            if let e = outbox.first(where: { $0.seq == seq }) {
+                let record = UploadRecord(seq: seq, size: e.size, reason: e.reason, createdAt: e.createdAt, uploadedAt: now)
+                state.recentUploads = Array(([record] + (state.recentUploads ?? [])).prefix(Self.recentUploadLimit))
+            }
+        }
         while state.ackedAbove.contains(state.ackedContiguous + 1) {
             state.ackedContiguous += 1
             let reached = state.ackedContiguous
@@ -478,6 +486,10 @@ public actor Device {
         let ackedBefore = state.highestAcked  // an ack arriving during the read must not look like a rollback
         let s = try await client.state()
         if let l = s.limits { state.limits = l }
+        if var usage = s.usage {
+            usage.checkedAt = now
+            state.relayUsage = usage
+        }
         if let since = state.rollbackSuspectedAt, let acked = state.rollbackAckedAtSuspicion {
             if now.timeIntervalSince(since) >= 600 {
                 if s.maxSeq < acked {

@@ -115,7 +115,9 @@ actor DeviceHost {
     func sync(readable: Bool) async throws -> Int {
         guard let device else { throw SyncError.notEnrolled }
         try? await device.checkRelay()
-        return try await device.sync(source: source(readable: { readable }))
+        let sealed = try await device.sync(source: source(readable: { readable }))
+        try? await device.checkRelay()  // so the status shows what the relay now holds
+        return sealed
     }
 
     /// Read and seal only (background wake); uploads go through the background session.
@@ -131,7 +133,7 @@ actor DeviceHost {
     }
 
     func state() async -> DeviceState? { await device?.state }
-    func outboxCount() -> Int { (try? store.outbox().count) ?? 0 }
+    func outbox() -> [OutboxEntry] { (try? store.outbox()) ?? [] }
 
     func acknowledge(_ seq: Int, deviceID: String) async throws {
         guard let device, await device.state.deviceID == deviceID else { return }

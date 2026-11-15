@@ -386,6 +386,43 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(batchPuts.count - before, 6, "all six pages re-sent")
     }
 
+    func testAcknowledgedUploadsAreListedNewestFirstAndCapped() async throws {
+        try await skipDaily()
+        try await device.sync(source: one(), now: now)
+        var state = await device.state
+        XCTAssertEqual(state.recentUploads?.map(\.seq), [1])
+        XCTAssertEqual(state.recentUploads?.first?.reason, "sync")
+        XCTAssertEqual(state.recentUploads?.first?.uploadedAt, now)
+        // A repeated 200 for the same seq adds nothing.
+        try await device.acknowledge(1, now: now)
+        for i in 0..<25 {
+            try await device.sync(source: one([hr(i + 2)], type: "T\(i)"), now: now.addingTimeInterval(Double(i + 1)))
+        }
+        state = await device.state
+        XCTAssertEqual(state.recentUploads?.count, Device.recentUploadLimit)
+        XCTAssertEqual(state.recentUploads?.first?.seq, 26)
+    }
+
+    func testRelayUsageIsStoredFromState() async throws {
+        StubRelay.answer = { _, path, _ in
+            path.hasSuffix("/state") ? (200, ["status": "active", "contiguous_seq": 0, "max_seq": 0, "grant_seq": 1,
+                                              "batches": 3, "bytes": 1500, "user_bytes": 4000,
+                                              "last_received_at": "2026-11-13T08:00:00.000Z"]) : (200, [:])
+        }
+        try await device.checkRelay(now: now)
+        let usage = await device.state.relayUsage
+        XCTAssertEqual(usage?.batches, 3)
+        XCTAssertEqual(usage?.bytes, 1500)
+        XCTAssertEqual(usage?.userBytes, 4000)
+        XCTAssertEqual(usage?.lastReceivedAt, Encoding.parseInstant("2026-11-13T08:00:00.000Z"))
+        XCTAssertEqual(usage?.checkedAt, now)
+        // An older relay without these fields leaves the last reading in place.
+        StubRelay.answer = stateAnswer(maxSeq: 0)
+        try await device.checkRelay(now: now.addingTimeInterval(60))
+        let kept = await device.state.relayUsage
+        XCTAssertEqual(kept?.checkedAt, now)
+    }
+
     func testOlderStateFilesStillDecode() throws {
         let json = #"{"server":"https://r.example.test","userID":"u_x","userName":"M","deviceID":"d_x","deviceName":"P","enrolledAt":"2026-11-13T08:00:00Z","limits":{"max_batch_bytes":1,"device_daily_bytes":1,"user_total_bytes":1,"seq_window":1},"grants":[],"lastSealedSeq":0,"ackedAbove":[],"ackedContiguous":0,"committedAnchors":{}}"#
         XCTAssertNoThrow(try DeviceStore.decoder.decode(DeviceState.self, from: Data(json.utf8)))

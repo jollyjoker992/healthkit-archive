@@ -126,6 +126,8 @@ public final class RelayClient {
         public let maxSeq: Int
         public let grantSeq: Int?
         public let limits: Limits?
+        /// What the relay stores (spec 6.1); nil from a relay that predates these fields.
+        public var usage: RelayUsage? = nil
     }
 
     func signed(_ method: String, _ target: String, retry: Bool = true) async throws -> [String: Any] {
@@ -151,7 +153,13 @@ public final class RelayClient {
         guard let status = o["status"] as? String, let c = jsonInt(o["contiguous_seq"]), let m = jsonInt(o["max_seq"]) else {
             throw RelayError(status: 200, code: "bad_response", message: "state response", extra: [:])
         }
-        return State(status: status, contiguousSeq: c, maxSeq: m, grantSeq: jsonInt(o["grant_seq"]), limits: Self.limits(o["limits"]))
+        var usage: RelayUsage?
+        if let batches = jsonInt(o["batches"]), let bytes = jsonInt(o["bytes"]), let userBytes = jsonInt(o["user_bytes"]) {
+            usage = RelayUsage(batches: batches, bytes: bytes, userBytes: userBytes,
+                               lastReceivedAt: (o["last_received_at"] as? String).flatMap(Encoding.parseInstant), checkedAt: Date())
+        }
+        return State(status: status, contiguousSeq: c, maxSeq: m, grantSeq: jsonInt(o["grant_seq"]), limits: Self.limits(o["limits"]),
+                     usage: usage)
     }
 
     public func purge() async throws {

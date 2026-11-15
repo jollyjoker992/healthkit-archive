@@ -284,10 +284,13 @@ A **granted processor** for a device is one listed in the device's current (high
 
 ```json
 {"status":"active","contiguous_seq":41,"max_seq":42,"last_manifest_sha256":"<hex of manifest max_seq, or null>",
- "grant_seq":3,"grant_sha256":"<hex or null>","server_time":1794556801,"limits":{…}}
+ "grant_seq":3,"grant_sha256":"<hex or null>","server_time":1794556801,"limits":{…},
+ "batches":42,"bytes":98765432,"last_received_at":"<instant or null>","user_bytes":123456789}
 ```
 
 `grant_seq` and `grant_sha256` describe the highest stored grant and are `null` when the device has none.
+
+`batches` and `bytes` count the device's stored batches and their ciphertext size, `last_received_at` is the newest of their `received_at` (`null` when there are none), and `user_bytes` is the stored ciphertext of the user's devices that are not `purged`, the figure checked against `user_total_bytes` (6.3). They are for display: a device MUST NOT base chain or upload decisions on them.
 
 `GET /v1/streams`: every device for which the caller is a listed processor. `granted` says whether it is in the current grant:
 

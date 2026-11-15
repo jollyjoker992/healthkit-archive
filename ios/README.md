@@ -43,7 +43,7 @@ captured with `xcrun simctl io <sim> screenshot` without tapping:
 |---|---|
 | `HKA_DEBUG_INVITE`, `HKA_DEBUG_CARD` | Enrol with the invite and add the cards (space-separated; may be empty) |
 | `HKA_DEBUG_PREFILL` | Open the Join screen for this invite without enrolling |
-| `HKA_DEBUG_SCREEN` | `scan-invite`, `scan-card`, `add-card` (card from `HKA_DEBUG_CARD2`), `processor`, `bottom`, `resend`, `start-over`, `error` |
+| `HKA_DEBUG_SCREEN` | `scan-invite`, `scan-card`, `add-card` (card from `HKA_DEBUG_CARD2`), `processor`, `details` (Backup Details), `bottom` (its end), `resend`, `start-over`, `error` |
 | `HKA_DEBUG_REMOVE`, `HKA_DEBUG_REJECT` | Open the remove dialog on the processor screen; show the invalid-code message in the scanner |
 | `HKA_DEBUG_SEED` | `1`: write the test day into HealthKit (removing earlier seed data first); `delete-weight`: delete the seeded weigh-in. `probe:<type>,…,read:<from>-<to>`: only request authorization for those types (HealthKit aborts at once on a type an app may not request; used to find that correlations cannot be requested). Debug builds also carry a Health *write* description for this; release builds never ask to write. |
 

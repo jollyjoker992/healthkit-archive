@@ -34,7 +34,7 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await model.refresh() } }
+            if phase == .active { Task { await model.refreshFromRelay() } }
         }
         .alert(model.failure?.title ?? "", isPresented: Binding(get: { model.failure != nil }, set: { if !$0 { model.failure = nil } })) {
             Button("OK", role: .cancel) {}
@@ -238,35 +238,26 @@ struct HomeView: View {
     @State var candidate: Processor?
     @State var selected: Processor?
     @State var confirmStartOver = false
-    @State var confirmResend = false
+    @State var showDetails = false
 
     var processors: [Processor] { model.state?.currentGrant?.processors ?? [] }
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                List {
-                    if let s = model.state {
-                        statusSection(s)
-                        processorSection
-                        activitySection(s)
-                        phoneSection(s)
-                        advancedSection.id("advanced")
+            List {
+                if let s = model.state {
+                    statusSection(s)
+                    processorSection
+                    Section {
+                        Button { showDetails = true } label: { ChevronRow { Text("Backup Details") } }
+                            .accessibilityIdentifier("backupDetails")
                     }
                 }
-                #if DEBUG
-                .task {
-                    if ["bottom", "resend"].contains(AppModel.debugScreen) {
-                        try? await Task.sleep(nanoseconds: 500_000_000)
-                        proxy.scrollTo("advanced", anchor: .bottom)
-                        if AppModel.debugScreen == "resend" { confirmResend = true }
-                    }
-                }
-                #endif
             }
             .navigationTitle("Health Backup")
-            .refreshable { await model.refresh() }
+            .refreshable { await model.refreshFromRelay() }
             .navigationDestination(item: $selected) { ProcessorDetail(processor: $0, isLast: processors.count <= 1) }
+            .navigationDestination(isPresented: $showDetails) { BackupDetailsView() }
             .sheet(isPresented: $scanning) {
                 CodeScanner(title: "Scan Processor Card", prefix: "hka-card:",
                             hint: "Point the camera at the QR code shown by “hka card”.") { text in
@@ -290,6 +281,7 @@ struct HomeView: View {
                 case "add-card": candidate = AppModel.debugEnv("HKA_DEBUG_CARD2").flatMap { try? Processor.parseCard($0) }
                 case "processor": selected = processors.last
                 case "start-over": confirmStartOver = true
+                case "details", "resend", "bottom": showDetails = true
                 case "error": model.failure = Failure(title: String(localized: "Couldn’t back up"), detail: "network: the relay could not be reached")
                 default: break
                 }
@@ -309,6 +301,10 @@ struct HomeView: View {
                     Text(verbatim: status.detail).font(.subheadline).foregroundStyle(.secondary)
                     if let reason = status.reason {
                         Text(verbatim: reason).font(.caption).foregroundStyle(.secondary).padding(.top, 4)
+                    } else if let usage = s.relayUsage, usage.batches > 0 {
+                        // Confirmed by the server, not just this iPhone's memory of uploading.
+                        Text("\(usage.bytes.formatted(.byteCount(style: .file))) stored on the server")
+                            .font(.caption).foregroundStyle(.secondary).padding(.top, 4)
                     }
                 }
             }
@@ -338,16 +334,7 @@ struct HomeView: View {
     var processorSection: some View {
         Section {
             ForEach(processors, id: \.id) { p in
-                Button { selected = p } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: p.name).foregroundStyle(Color(.label))
-                            Text(verbatim: p.fingerprint).font(.caption.monospaced()).foregroundStyle(Color(.secondaryLabel))
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color(.tertiaryLabel))
-                    }
-                }
+                Button { selected = p } label: { ChevronRow { Text(verbatim: p.name) } }
             }
             if processors.isEmpty {
                 Text("No one yet").foregroundStyle(.secondary)
@@ -364,9 +351,90 @@ struct HomeView: View {
             }
         }
     }
+}
 
-    func activitySection(_ s: DeviceState) -> some View {
-        Section("Activity") {
+/// A list row that navigates: label on the left, chevron on the right.
+struct ChevronRow<Label: View>: View {
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        HStack {
+            label().foregroundStyle(Color(.label))
+            Spacer()
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color(.tertiaryLabel))
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: backup details
+
+/// Everything a member rarely needs: what the server holds, what this iPhone is doing, recent
+/// uploads, this iPhone's identity, and the advanced actions.
+struct BackupDetailsView: View {
+    @EnvironmentObject var model: AppModel
+    @State var confirmResend = false
+
+    var processors: [Processor] { model.state?.currentGrant?.processors ?? [] }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                if let s = model.state {
+                    serverSection(s)
+                    phoneActivitySection(s)
+                    uploadsSection(s)
+                    phoneSection(s)
+                    advancedSection.id("advanced")
+                }
+            }
+            .task {
+                #if DEBUG
+                if ["bottom", "resend"].contains(AppModel.debugScreen) {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    proxy.scrollTo("advanced", anchor: .bottom)
+                    if AppModel.debugScreen == "resend" { confirmResend = true }
+                }
+                #endif
+                await model.refreshFromRelay()
+            }
+        }
+        .navigationTitle("Backup Details").navigationBarTitleDisplayMode(.inline)
+        .refreshable { await model.refreshFromRelay() }
+    }
+
+    /// Day, month and time: short enough to stay on one line beside its label.
+    static func format(_ d: Date) -> String { d.formatted(.dateTime.day().month(.abbreviated).hour().minute()) }
+    static func size(_ bytes: Int) -> String { bytes.formatted(.byteCount(style: .file)) }
+
+    /// Storage is mentioned only when it is close to the limit: before that it is not the member's concern.
+    static let storageWarningShare = 0.8
+
+    func serverSection(_ s: DeviceState) -> some View {
+        Section {
+            if let u = s.relayUsage {
+                LabeledContent("Uploads stored", value: u.batches.formatted())
+                LabeledContent("Size", value: Self.size(u.bytes))
+                LabeledContent("Last received", value: u.lastReceivedAt.map(Self.format) ?? String(localized: "Never"))
+                if Double(u.userBytes) >= Self.storageWarningShare * Double(s.limits.user_total_bytes) {
+                    LabeledContent("Storage used", value: String(localized: "\(Self.size(u.userBytes)) of \(Self.size(s.limits.user_total_bytes))"))
+                        .foregroundStyle(.orange)
+                }
+            } else {
+                Text("Not checked yet").foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("On the server")
+        } footer: {
+            if let u = s.relayUsage {
+                Text("Checked \(u.checkedAt.formatted(.relative(presentation: .named))). Pull down to check again.")
+            }
+        }
+    }
+
+    func phoneActivitySection(_ s: DeviceState) -> some View {
+        Section("On this iPhone") {
             LabeledContent("Last read from Health", value: s.lastSyncAt.map(Self.format) ?? String(localized: "Never"))
             LabeledContent("Last upload", value: s.lastUploadAt.map(Self.format) ?? String(localized: "Never"))
             if model.outboxCount > 0 { LabeledContent("Waiting to upload", value: model.outboxCount.formatted()) }
@@ -376,9 +444,29 @@ struct HomeView: View {
             if let e = s.lastError {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Last problem")
-                    Text(verbatim: e).font(.footnote).foregroundStyle(.secondary)
+                    Text(verbatim: e).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
+        }
+    }
+
+    func uploadsSection(_ s: DeviceState) -> some View {
+        let done = s.recentUploads ?? []
+        return Section {
+            ForEach(model.outbox.reversed(), id: \.seq) { e in
+                UploadRow(seq: e.seq, reason: e.reason, size: e.size, date: e.createdAt,
+                          waiting: true, problem: e.lastError)
+            }
+            ForEach(done, id: \.seq) { r in
+                UploadRow(seq: r.seq, reason: r.reason, size: r.size, date: r.uploadedAt, waiting: false, problem: nil)
+            }
+            if model.outbox.isEmpty && done.isEmpty {
+                Text("None yet").foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Recent uploads")
+        } footer: {
+            Text("Each upload is encrypted on this iPhone. Only your processors can open it.")
         }
     }
 
@@ -414,8 +502,45 @@ struct HomeView: View {
             Text("To change what is shared later, open the Health app, tap your picture, then Apps.")
         }
     }
+}
 
-    static func format(_ d: Date) -> String { d.formatted(date: .abbreviated, time: .shortened) }
+/// One upload: why it was made, when, its size, and whether the server has it yet.
+struct UploadRow: View {
+    let seq: Int
+    let reason: String
+    let size: Int
+    let date: Date
+    let waiting: Bool
+    let problem: String?
+
+    var title: String {
+        switch reason {
+        case "sync": String(localized: "New Health data")
+        case "backfill": String(localized: "Earlier history")
+        case "resend": String(localized: "Daily check")
+        case "census": String(localized: "Weekly count")
+        default: reason
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: title)
+                // The seq matches what a processor shows in `hka status`.
+                Text(verbatim: "#\(seq) · \(BackupDetailsView.format(date))").font(.caption).foregroundStyle(.secondary)
+                if waiting {
+                    Text("Waiting to upload").font(.caption).foregroundStyle(.orange)
+                }
+                if let problem {
+                    Text(verbatim: problem).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Text(verbatim: BackupDetailsView.size(size)).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+        }
+        .accessibilityElement(children: .combine)
+    }
 }
 
 // MARK: processors

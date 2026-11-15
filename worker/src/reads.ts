@@ -19,6 +19,14 @@ export async function getState(ctx: Ctx, caller: Caller, deviceId: string): Prom
         .bind(deviceId, dev.max_seq).first<{ manifest_sha256: string }>()
     : null;
   const grant = await maxGrant(ctx, deviceId);
+  const usage = await ctx.env.DB.prepare(
+    `SELECT
+       (SELECT COUNT(*) FROM batches WHERE device_id = ?1) AS batches,
+       (SELECT COALESCE(SUM(size), 0) FROM batches WHERE device_id = ?1) AS bytes,
+       (SELECT MAX(received_at) FROM batches WHERE device_id = ?1) AS last_received_at,
+       (SELECT COALESCE(SUM(b.size), 0) FROM batches b JOIN devices d ON d.device_id = b.device_id
+          WHERE d.user_id = ?2 AND d.status != 'purged') AS user_bytes`,
+  ).bind(deviceId, dev.user_id).first<{ batches: number; bytes: number; last_received_at: string | null; user_bytes: number }>();
   return json({
     status: dev.status,
     contiguous_seq: dev.contiguous_seq,
@@ -28,6 +36,10 @@ export async function getState(ctx: Ctx, caller: Caller, deviceId: string): Prom
     grant_sha256: grant?.sha256 ?? null,
     server_time: Math.floor(ctx.now / 1000),
     limits: ctx.config.limits,
+    batches: usage?.batches ?? 0,
+    bytes: usage?.bytes ?? 0,
+    last_received_at: usage?.last_received_at ?? null,
+    user_bytes: usage?.user_bytes ?? 0,
   });
 }
 

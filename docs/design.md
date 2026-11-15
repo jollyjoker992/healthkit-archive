@@ -90,7 +90,7 @@ Headers `HKA-Key` (key id), `HKA-Timestamp`, `HKA-Signature` over `method \n pat
 | `Enrollment` | Scan invite QR, register device |
 | `Processors` | Scan processor cards, show fingerprints, add/remove, publish grant |
 | `Reconciler` | Daily re-send window and census |
-| `StatusView` | Last sync, outbox size, per-type counts, errors, device fingerprint |
+| `StatusView` | Home: one status (with the size the relay confirms), processors, a link to Backup Details. Backup Details: what the relay stores, last read and upload, recent uploads, errors, device fingerprint, advanced actions |
 
 ### 3.2 Enrolment
 1. Admin runs `hka-admin invite --name "Mom"`; the tool shows a QR: `{server, user_id, name, exp, nonce}` signed by the admin key.
@@ -168,7 +168,7 @@ Plan: the free Workers plan allows 10 ms of CPU per request, which hashing an 8 
 |---|---|---|
 | `POST /v1/enroll` | new device + invite | Verify invite; create user if new; add device |
 | `PUT /v1/devices/{did}/grant` | device | Store grant if `grant_seq` is higher than current |
-| `GET /v1/devices/{did}/state` | device | `last_seq`, missing seqs, current `grant_seq` |
+| `GET /v1/devices/{did}/state` | device | `last_seq`, missing seqs, current `grant_seq`; stored batches, bytes and quota use, for display |
 | `PUT /v1/devices/{did}/batches/{seq}` | device (signed manifest) | See 4.3 |
 | `GET /v1/streams` | processor | Devices whose current grant lists this processor, with device public key and `last_seq` |
 | `GET /v1/devices/{did}/batches?after=&limit=` | granted processor | Manifests and signatures |

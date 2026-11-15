@@ -29,6 +29,7 @@ final class SimulatorEndToEndTests: XCTestCase {
         allowHealthAccess(app)
         waitForBackedUp(app)
 
+        app.buttons["backupDetails"].tap()
         let fingerprint = app.staticTexts["deviceFingerprint"]
         for _ in 0..<6 where !fingerprint.isHittable { app.swipeUp() }
         XCTAssertTrue(fingerprint.exists, "fingerprint row not found")

@@ -7,7 +7,9 @@ import UIKit
 @MainActor
 final class AppModel: ObservableObject {
     @Published var state: DeviceState?
-    @Published var outboxCount = 0
+    /// Sealed batches waiting for the relay, oldest first.
+    @Published var outbox: [OutboxEntry] = []
+    var outboxCount: Int { outbox.count }
     @Published var busy = false
     /// The last failure, shown as an alert. Success needs no message: the status header changes.
     /// The title is localized; the detail is technical (relay codes stay English, system errors are
@@ -67,7 +69,14 @@ final class AppModel: ObservableObject {
 
     func refresh() async {
         state = await DeviceHost.shared.state()
-        outboxCount = await DeviceHost.shared.outboxCount()
+        outbox = await DeviceHost.shared.outbox()
+    }
+
+    /// Ask the relay what it stores (and run its rollback check), then refresh. Failures are ignored:
+    /// the screen keeps the last reading and its time.
+    func refreshFromRelay() async {
+        await DeviceHost.shared.checkRelay()
+        await refresh()
     }
 
     var deviceFingerprint: String? { state?.deviceFingerprint }

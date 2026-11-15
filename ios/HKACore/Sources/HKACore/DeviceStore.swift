@@ -17,6 +17,28 @@ public struct StoredGrant: Codable, Equatable {
     public var acked: Bool
 }
 
+/// The relay's count of what it stores for this device (spec 6.1 `state`). Display only: the chain
+/// never depends on it.
+public struct RelayUsage: Codable, Equatable {
+    public var batches: Int
+    public var bytes: Int
+    /// The user's stored bytes on all their devices, checked against `Limits.user_total_bytes`.
+    public var userBytes: Int
+    public var lastReceivedAt: Date?
+    /// When this device last read it.
+    public var checkedAt: Date
+}
+
+/// An acknowledged upload, kept for the member's upload list.
+public struct UploadRecord: Codable, Equatable {
+    public var seq: Int
+    public var size: Int
+    /// The batch's reason: `sync`, `backfill`, `resend` or `census`.
+    public var reason: String
+    public var createdAt: Date
+    public var uploadedAt: Date
+}
+
 /// Why uploading stopped. `.paused` is retried daily; `.halted` needs the member (spec 4.3 device rules).
 public enum Stop: Codable, Equatable {
     case paused(reason: String, since: Date)
@@ -68,6 +90,10 @@ public struct DeviceState: Codable, Equatable {
     /// Incremented on every re-send request; a pass clears the request only if no new one arrived.
     public var resendGeneration: Int?
     public var resendCommittedAnchors: [String: Data]?
+    /// The relay's usage at the last `state` read.
+    public var relayUsage: RelayUsage?
+    /// The newest acknowledged uploads, newest first (at most `Device.recentUploadLimit`).
+    public var recentUploads: [UploadRecord]?
 
     public var deviceFingerprint: String? { devicePub.flatMap(Encoding.b64uDecode).map(Fingerprint.of) }
 
