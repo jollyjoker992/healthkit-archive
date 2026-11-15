@@ -1,7 +1,7 @@
 """An in-memory relay that serves whatever the test puts in it, honest or not.
 
-It implements only the processor read endpoints, with the client's interface
-(`get`, `get_bytes`), so pull logic can be tested against a lying relay.
+It implements the processor endpoints, with the client's interface (`get`, `get_bytes`,
+`put_document`), so pull logic can be tested against a lying relay.
 """
 from __future__ import annotations
 
@@ -30,6 +30,8 @@ class FakeRelay:
         self.streams: dict[str, Stream] = {}
         self.unknown = False
         self.not_granted: set[str] = set()
+        self.receipts: list[tuple[str, bytes, str]] = []  # (target, doc, sig) as received
+        self.receipt_error: ApiError | None = None
 
     def add_grant(self, device_id: str, raw: bytes, sig: str) -> None:
         s = self.streams[device_id]
@@ -48,6 +50,12 @@ class FakeRelay:
         while n + 1 in s.batches:
             n += 1
         return n
+
+    def put_document(self, target: str, doc: bytes, sig: str):
+        if self.receipt_error:
+            raise self.receipt_error
+        self.receipts.append((target, doc, sig))
+        return {}
 
     def get(self, target: str):
         if target == "/v1/streams":

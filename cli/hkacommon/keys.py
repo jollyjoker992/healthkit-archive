@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 from .encoding import FormatError, b64u_decode, b64u_encode, sha256
 
-PURPOSES = ("invite", "enroll", "grant", "manifest", "request")
+PURPOSES = ("invite", "enroll", "grant", "manifest", "request", "receipt")
 
 
 def signing_input(purpose: str, payload: bytes) -> bytes:

@@ -49,7 +49,7 @@ Every signature is computed over
 "hka-v1/" || purpose || "\n" || payload
 ```
 
-where `purpose` is one of `invite`, `enroll`, `grant`, `manifest`, `request`, and `payload` is the exact bytes described for that purpose. A signature for one purpose MUST NOT verify for another.
+where `purpose` is one of `invite`, `enroll`, `grant`, `manifest`, `request`, `receipt`, and `payload` is the exact bytes described for that purpose. A signature for one purpose MUST NOT verify for another.
 
 ### 2.3 Identifiers
 
@@ -224,6 +224,30 @@ Read consistency: every read the server uses for authentication, idempotency, `c
 
 The server does not verify `prev`; processors do (section 7). `contiguous_seq` is the highest `n` such that every `seq` from 1 to `n` is stored (0 if none).
 
+### 4.5 Receipt
+A receipt tells the device that a processor holds its batches. It is signed by the processor's signing key, purpose `receipt`, payload = receipt JSON bytes (at most 1 KiB).
+
+```json
+{"v":1,"t":"receipt","device_id":"d_…","processor_id":"p_…","seq":42,"created_at":"2026-11-13T08:00:00.000Z"}
+```
+
+Meaning: the processor has verified this device's batches 1 to `seq` (section 7, steps 3 to 6) and stores every one of them that was encrypted to it. `created_at` is the processor's clock when it signed.
+
+Upload: `PUT /v1/devices/{device_id}/receipt`, body `{"doc":"<b64u(receipt JSON)>","sig":"<b64u>"}`. Like a grant, it is self-authenticating and carries no request signature.
+
+The server checks, in order:
+1. Body, JSON and field formats; `device_id` matches the path (400 `bad_request`).
+2. The device exists (404 `not_found`).
+3. `processor_id` is a listed processor of the device (section 6.1; 403 `not_granted`), and the signature verifies with the `sign_pub` that the device's grants give for it (401 `bad_signature`).
+4. `seq` is at most the device's `contiguous_seq` (400 `bad_request`): nothing beyond it can have been verified.
+5. If `seq` is higher than the stored receipt of this processor for this device, or none is stored, store it. Return 200 `{"seq"}` with the stored receipt's `seq`. A lower or equal `seq` changes nothing.
+
+Device status is not checked: a receipt changes nothing but what the device is shown.
+
+Processor rule: after its verified prefix for a device advances, a processor SHOULD send a receipt for the new prefix. A failed receipt is retried on the next pull and never stops verification.
+
+Device rules: the device reads receipts from `state` (6.1). It MUST verify each with the `sign_pub` of that `processor_id` taken from its own grants, never from the relay, and MUST check `device_id` is its own and `seq` is at most the highest `seq` it has sealed; it ignores a receipt that fails. It keeps the highest verified receipt per processor. Receipts are for display only: they never change the chain, the outbox or uploads.
+
 ### 4.4 Ciphertext
 The batch body is an `age` v1 file in binary form (not armored), encrypted to the X25519 recipients of the grant named in the manifest, one stanza per processor, in grant order. The plaintext is a gzip stream (RFC 1952) of NDJSON records as defined in [records.md](records.md). Decompressed size MUST NOT exceed 256 MiB; processors MUST enforce this while decompressing.
 
@@ -265,6 +289,7 @@ Requests are not single-use within the 300 s window. Every signed endpoint is re
 | `PUT /v1/devices/{did}/grant` | grant document (4.2) | `{"grant_seq"}` |
 | `PUT /v1/devices/{did}/batches/{seq}` | manifest (4.3) | `{"seq","received_at"}` |
 | `GET /v1/devices/{did}/state` | request, that device | see below |
+| `PUT /v1/devices/{did}/receipt` | receipt document (4.5) | `{"seq"}` |
 | `POST /v1/devices/{did}/purge` | request, that device, `active` or `purged` | `{"status":"purged"}` |
 | `GET /v1/streams` | request, processor | see below |
 | `GET /v1/devices/{did}/grants` | request, listed processor | `{"grants":[{"grant_seq","doc","sig","received_at"}]}`, ascending; also for `purged` devices |
@@ -285,12 +310,13 @@ A **granted processor** for a device is one listed in the device's current (high
 ```json
 {"status":"active","contiguous_seq":41,"max_seq":42,"last_manifest_sha256":"<hex of manifest max_seq, or null>",
  "grant_seq":3,"grant_sha256":"<hex or null>","server_time":1794556801,"limits":{…},
- "batches":42,"bytes":98765432,"last_received_at":"<instant or null>","user_bytes":123456789}
+ "batches":42,"bytes":98765432,"last_received_at":"<instant or null>","user_bytes":123456789,
+ "receipts":[{"doc":"<b64u>","sig":"<b64u>","received_at":"…"}]}
 ```
 
 `grant_seq` and `grant_sha256` describe the highest stored grant and are `null` when the device has none.
 
-`batches` and `bytes` count the device's stored batches and their ciphertext size, `last_received_at` is the newest of their `received_at` (`null` when there are none), and `user_bytes` is the stored ciphertext of the user's devices that are not `purged`, the figure checked against `user_total_bytes` (6.3). They are for display: a device MUST NOT base chain or upload decisions on them.
+`batches` and `bytes` count the device's stored batches and their ciphertext size, `last_received_at` is the newest of their `received_at` (`null` when there are none), and `user_bytes` is the stored ciphertext of the user's devices that are not `purged`, the figure checked against `user_total_bytes` (6.3). They are for display: a device MUST NOT base chain or upload decisions on them. `receipts` holds the stored receipt (4.5) of each processor that sent one, ordered by `processor_id`.
 
 `GET /v1/streams`: every device for which the caller is a listed processor. `granted` says whether it is in the current grant:
 
@@ -325,7 +351,7 @@ Errors are `{"error":"<code>","message":"<text>", …extra}`. "Retryable" tells 
 | 401 | `stale_timestamp` | yes, after fixing the clock | `server_time` | Request timestamp or enrolment `ts` outside ±300 s |
 | 403 | `device_inactive` | no | `status` | Device is `retired` or `purged` |
 | 403 | `device_purged` | no | | Reading a purged device |
-| 403 | `not_granted` | no | | Processor not in the current grant |
+| 403 | `not_granted` | no | | Processor not in the current grant; for a receipt, not listed by the device |
 | 403 | `forbidden` | no | | Key type not allowed on this endpoint |
 | 403 | `invite_invalid` | no | | Unknown admin, bad invite signature, wrong server, expired or too-long `exp` |
 | 404 | `not_found` | no | | Unknown path, device, user or batch |
@@ -398,6 +424,7 @@ A processor reports an `active` device with no new batch for 3 days (the app sen
 |---|---|
 | Invite, card | 1 KiB encoded |
 | Enrolment body, manifest | 4 KiB |
+| Receipt | 1 KiB |
 | Grant document | 16 KiB |
 | Invite lifetime | 7 days |
 | Batch ciphertext | 8 MiB default; a deployment may choose a lower value when it is set up, and never changes it afterwards (see `limits`) |

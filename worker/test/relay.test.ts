@@ -1,6 +1,6 @@
 // Behaviour of the relay against the numbered rules in spec/README.md.
 import { describe, expect, it } from "vitest";
-import { b64uEncode } from "../src/encoding";
+import { b64uDecode, b64uEncode } from "../src/encoding";
 import { runPurgeJob } from "../src/purge";
 import { objectKey } from "../src/context";
 import {
@@ -238,6 +238,28 @@ describe("state and processor reads (6.1)", () => {
     const state = await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`));
     expect(state).toMatchObject({ status: "active", contiguous_seq: 0, max_seq: 0, last_manifest_sha256: null, grant_seq: null, grant_sha256: null,
       batches: 0, bytes: 0, last_received_at: null, user_bytes: 0 });
+  });
+
+  it("keeps the highest receipt per processor and returns them in state", async () => {
+    const chain = await setupDevice();
+    for (let i = 0; i < 3; i++) await putBatch("device 1", await chain.seal());
+    const put = async (label: string, seq: number) => {
+      const doc = compact({ v: 1, t: "receipt", device_id: DEVICE_1.id, processor_id: KEY[label].id, seq,
+        created_at: new Date(NOW).toISOString() });
+      return call(new Request(`${ORIGIN}/v1/devices/${DEVICE_1.id}/receipt`, {
+        method: "PUT", body: JSON.stringify({ doc: b64uEncode(doc), sig: await sign(label, "receipt", doc) }),
+      }));
+    };
+    expect(await body(await put("processor 1", 2))).toEqual({ seq: 2 });
+    expect(await body(await put("processor 1", 3))).toEqual({ seq: 3 });
+    expect(await body(await put("processor 1", 1))).toEqual({ seq: 3 }); // a lower one changes nothing
+    expect(await body(await put("processor 2", 1))).toEqual({ seq: 1 });
+    const state = await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`));
+    const seqs = state.receipts.map((r: { doc: string }) => JSON.parse(new TextDecoder().decode(b64uDecode(r.doc)!)).seq);
+    expect(seqs.sort()).toEqual([1, 3]);
+    // A processor removed by a later grant is still listed, so it can still say what it holds.
+    await putGrant("device 1", grantDoc("device 1", 2, ["processor 1"]));
+    expect(await body(await put("processor 2", 2))).toEqual({ seq: 2 });
   });
 
   it("state counts the device's stored batches and the user's total", async () => {

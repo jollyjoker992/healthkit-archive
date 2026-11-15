@@ -131,3 +131,28 @@ public enum Documents {
         return ["HKA-Key": signer.deviceID, "HKA-Timestamp": ts, "HKA-Signature": try signer.sign("request", payload)]
     }
 }
+
+/// A processor's statement that it holds this device's batches 1 to `seq` (spec 4.5).
+public struct Receipt: Codable, Equatable {
+    public let processorID: String
+    public let seq: Int
+    /// The processor's clock when it signed.
+    public let createdAt: Date
+
+    /// Verify a receipt the relay passed on. The key comes from the device's own grants, never from the
+    /// relay; the receipt must name this device and claim no more than it sealed. nil if any check fails.
+    public static func verified(doc: Data, sig: String, deviceID: String, processors: [String: Processor],
+                                lastSealedSeq: Int) -> Receipt? {
+        guard doc.count <= 1024, let o = Encoding.parseObject(doc), jsonInt(o["v"]) == 1, o["t"] as? String == "receipt",
+              o["device_id"] as? String == deviceID,
+              let pid = o["processor_id"] as? String, let processor = processors[pid],
+              let seq = jsonInt(o["seq"]), seq >= 1, seq <= lastSealedSeq,
+              let created = (o["created_at"] as? String).flatMap(Encoding.parseInstant),
+              let pub = Encoding.b64uDecode(processor.signPub),
+              let key = try? P256.Signing.PublicKey(x963Representation: pub),
+              let raw = Encoding.b64uDecode(sig), raw.count == 64,
+              let signature = try? P256.Signing.ECDSASignature(rawRepresentation: raw),
+              key.isValidSignature(signature, for: Data("hka-v1/receipt\n".utf8) + doc) else { return nil }
+        return Receipt(processorID: pid, seq: seq, createdAt: created)
+    }
+}

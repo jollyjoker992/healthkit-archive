@@ -94,6 +94,8 @@ public struct DeviceState: Codable, Equatable {
     public var relayUsage: RelayUsage?
     /// The newest acknowledged uploads, newest first (at most `Device.recentUploadLimit`).
     public var recentUploads: [UploadRecord]?
+    /// The highest verified receipt per processor id (spec 4.5).
+    public var receipts: [String: Receipt]?
 
     public var deviceFingerprint: String? { devicePub.flatMap(Encoding.b64uDecode).map(Fingerprint.of) }
 

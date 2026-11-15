@@ -9,7 +9,7 @@ import requests from "../../spec/vectors/requests.json";
 import documents from "../../spec/vectors/documents.json";
 import keys from "../../spec/vectors/keys.json";
 import {
-  ADMIN, DEVICE_1, KEY, b, body, call, enroll, putBatch, putGrant, setupDevice, sign,
+  ADMIN, DEVICE_1, KEY, b, body, call, enroll, putBatch, putGrant, setupDevice, sign, signedRequest,
 } from "./helpers";
 
 describe("encodings", () => {
@@ -107,12 +107,22 @@ describe("document vectors", () => {
     }
   }
 
+  it("accepts the valid receipt and returns it in state", async () => {
+    await storeValidState();
+    const res = await call(new Request(`${documents.server}/v1/devices/${DEVICE_1.id}/receipt`, {
+      method: "PUT", body: JSON.stringify({ doc: documents.receipt.doc, sig: documents.receipt.sig }),
+    }));
+    expect(await body(res)).toEqual({ seq: documents.receipt.seq });
+    const state = await body(await signedRequest("device 1", "GET", `/v1/devices/${DEVICE_1.id}/state`));
+    expect(state.receipts).toMatchObject([{ doc: documents.receipt.doc, sig: documents.receipt.sig }]);
+  });
+
   for (const c of documents.invalid) {
     it(`invalid ${c.kind}: ${c.note}`, async () => {
       let res: Response;
       if (c.kind === "invite") {
         res = await enroll("device 2", c.text!);
-      } else if (c.kind === "grant") {
+      } else if (c.kind === "grant" || c.kind === "receipt") {
         await storeValidState();
         res = await call(new Request(documents.server + c.path!, { method: "PUT", body: JSON.stringify({ doc: c.doc, sig: c.sig }) }));
       } else {

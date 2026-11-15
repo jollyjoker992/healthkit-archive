@@ -423,6 +423,39 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(kept?.checkedAt, now)
     }
 
+    func testOnlyVerifiedReceiptsAreKeptAndTheHighestWins() async throws {
+        let mac = SoftwareSigner()
+        let card = try Processor.parseCard(try (vectors("documents.json")["card"] as! [String: String])["text"]!)
+        let processor = Processor(id: mac.deviceID.replacingOccurrences(of: "d_", with: "p_"), name: "Mac",
+                                  ageRecipient: card.ageRecipient, signPub: mac.publicKeyB64u)
+        try await device.setProcessors([processor], now: now)
+        try await device.mutate { $0.lastSealedSeq = 5 }
+        func receipt(_ signer: SoftwareSigner, pid: String = processor.id, device did: String? = nil, seq: Int) throws -> [String: Any] {
+            let doc = try Encoding.json(["v": 1, "t": "receipt", "device_id": did ?? self.signer.deviceID,
+                                         "processor_id": pid, "seq": seq, "created_at": "2026-11-13T08:00:00.000Z"])
+            return ["doc": Encoding.b64u(doc), "sig": try signer.sign("receipt", doc), "received_at": "2026-11-13T08:00:00.000Z"]
+        }
+        var receipts: [[String: Any]] = []
+        StubRelay.answer = { _, path, _ in
+            path.hasSuffix("/state") ? (200, ["status": "active", "contiguous_seq": 5, "max_seq": 5, "grant_seq": 2,
+                                              "receipts": receipts]) : (200, [:])
+        }
+        receipts = [try receipt(mac, seq: 3)]
+        try await device.checkRelay(now: now)
+        var kept = await device.state.receipts
+        XCTAssertEqual(kept?[processor.id]?.seq, 3)
+        // Forged by another key, beyond what was sealed, or for another device: ignored. A lower seq does not win.
+        receipts = [try receipt(SoftwareSigner(), seq: 4), try receipt(mac, seq: 6),
+                    try receipt(mac, device: "d_" + String(repeating: "0", count: 32), seq: 4), try receipt(mac, seq: 2)]
+        try await device.checkRelay(now: now)
+        kept = await device.state.receipts
+        XCTAssertEqual(kept?[processor.id]?.seq, 3)
+        receipts = [try receipt(mac, seq: 5)]
+        try await device.checkRelay(now: now)
+        kept = await device.state.receipts
+        XCTAssertEqual(kept?[processor.id]?.seq, 5)
+    }
+
     func testOlderStateFilesStillDecode() throws {
         let json = #"{"server":"https://r.example.test","userID":"u_x","userName":"M","deviceID":"d_x","deviceName":"P","enrolledAt":"2026-11-13T08:00:00Z","limits":{"max_batch_bytes":1,"device_daily_bytes":1,"user_total_bytes":1,"seq_window":1},"grants":[],"lastSealedSeq":0,"ackedAbove":[],"ackedContiguous":0,"committedAnchors":{}}"#
         XCTAssertNoThrow(try DeviceStore.decoder.decode(DeviceState.self, from: Data(json.utf8)))

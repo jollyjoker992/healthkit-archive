@@ -150,6 +150,30 @@ class Verification(Harness):
         r = self.build()
         self.assertEqual((r.batches, r.skipped_not_recipient), (1, 1))
 
+    def test_receipt_is_sent_when_the_verified_prefix_advances(self):
+        from hkacommon.client import ApiError
+        from hkacommon.documents import parse_receipt, verify_signed
+        self.assertEqual(self.relay.receipts, [])  # nothing verified yet, nothing to claim
+        self.upload([sample(HR, "2026-11-12T01:00:00.000Z")])
+        self.upload([sample(HR, "2026-11-12T02:00:00.000Z")])
+        self.pull()
+        target, raw, sig = self.relay.receipts[-1]
+        self.assertEqual(target, f"/v1/devices/{self.dev.device_id}/receipt")
+        self.assertTrue(verify_signed(self.me.sign.pub_b64u, "receipt", raw, sig))
+        r = parse_receipt(raw)
+        self.assertEqual((r.device_id, r.processor_id, r.seq), (self.dev.device_id, self.me.processor_id, 2))
+        # Nothing new verified: no new receipt.
+        self.pull()
+        self.assertEqual(len(self.relay.receipts), 1)
+        # A failed receipt never stops the pull and is sent again next time.
+        self.upload([sample(HR, "2026-11-12T03:00:00.000Z")])
+        self.relay.receipt_error = ApiError(404, "not_found", "older relay", {})
+        self.assertEqual(self.pull().alarms, [])
+        self.assertEqual(self.state()["verified_seq"], 3)
+        self.relay.receipt_error = None
+        self.pull()
+        self.assertEqual(parse_receipt(self.relay.receipts[-1][1]).seq, 3)
+
     def test_silence_alarm(self):
         self.upload([sample(HR, "2026-11-12T01:00:00.000Z")])
         self.pull()

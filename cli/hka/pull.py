@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from hkacommon.client import ApiError, Client
-from hkacommon.documents import ID_RE, Grant, Manifest, parse_grant, parse_manifest, verify_signed
+from hkacommon.documents import ID_RE, Grant, Manifest, make_receipt, parse_grant, parse_manifest, verify_signed
 from hkacommon.encoding import FormatError, b64u_decode, is_instant, is_int, parse_instant, sha256_hex
 from hkacommon.keys import fingerprint, key_id, load_public_key, public_bytes
 from .store import Identity, Store, atomic_write, instant, read_json, write_json
@@ -242,6 +242,7 @@ class Puller:
                 state.pop("removed_still_uploading_reported", None)
                 self.pull_batches(did, pin, dev_dir, state)
             self.advance_chain(did, dev_dir, state, grants)
+            self.send_receipt(did, state)
         except ApiError as exc:
             if exc.code == "not_granted":
                 self.check_removal(did, pin, verified_grants(dev_dir), state, stream)
@@ -252,6 +253,18 @@ class Puller:
         finally:
             self.check_liveness(did, pin, stream["status"], state)
             write_json(state_path, state)
+
+    def send_receipt(self, did: str, state: dict) -> None:
+        """Tell the device how far this processor holds its batches (spec 4.5). Never fails the pull."""
+        seq = state.get("verified_seq", 0)
+        if seq <= state.get("receipt_seq", 0) or state.get("server_status") == "purged":
+            return
+        raw, sig = make_receipt(self.me.sign, did, seq, instant(self.now))
+        try:
+            self.client.put_document(f"/v1/devices/{did}/receipt", raw, sig)
+        except Exception:  # an older relay or a passing error: sent again on the next pull
+            return
+        state["receipt_seq"] = seq
 
     def check_removal(self, did: str, pin: dict, grants: dict[int, Grant], state: dict, stream: dict) -> None:
         newest = max(grants) if grants else 0

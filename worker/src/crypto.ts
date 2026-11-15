@@ -1,7 +1,7 @@
 // P-256 keys, signatures and identifiers (spec/README.md section 2).
 import { b64uDecode, concatBytes, encodeUtf8, hexEncode, sha256 } from "./encoding";
 
-export type Purpose = "invite" | "enroll" | "grant" | "manifest" | "request";
+export type Purpose = "invite" | "enroll" | "grant" | "manifest" | "request" | "receipt";
 export type IdPrefix = "d" | "p" | "a";
 
 export const ID_RE = { d: /^d_[0-9a-f]{32}$/, p: /^p_[0-9a-f]{32}$/, a: /^a_[0-9a-f]{32}$/, u: /^u_[0-9a-f]{32}$/ };

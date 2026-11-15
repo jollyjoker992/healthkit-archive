@@ -128,6 +128,8 @@ public final class RelayClient {
         public let limits: Limits?
         /// What the relay stores (spec 6.1); nil from a relay that predates these fields.
         public var usage: RelayUsage? = nil
+        /// Receipts as the relay passed them on, unverified (spec 4.5).
+        public var receipts: [Signed] = []
     }
 
     func signed(_ method: String, _ target: String, retry: Bool = true) async throws -> [String: Any] {
@@ -158,8 +160,12 @@ public final class RelayClient {
             usage = RelayUsage(batches: batches, bytes: bytes, userBytes: userBytes,
                                lastReceivedAt: (o["last_received_at"] as? String).flatMap(Encoding.parseInstant), checkedAt: Date())
         }
+        let receipts: [Signed] = ((o["receipts"] as? [[String: Any]]) ?? []).compactMap { r in
+            guard let doc = (r["doc"] as? String).flatMap(Encoding.b64uDecode), let sig = r["sig"] as? String else { return nil }
+            return Signed(doc: doc, sig: sig)
+        }
         return State(status: status, contiguousSeq: c, maxSeq: m, grantSeq: jsonInt(o["grant_seq"]), limits: Self.limits(o["limits"]),
-                     usage: usage)
+                     usage: usage, receipts: receipts)
     }
 
     public func purge() async throws {

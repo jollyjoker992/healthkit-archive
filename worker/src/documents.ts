@@ -42,6 +42,12 @@ export interface Manifest {
   grant_sha256: string;
 }
 
+export interface Receipt {
+  device_id: string;
+  processor_id: string;
+  seq: number;
+}
+
 function bad(message: string): never {
   fail("bad_request", message);
 }
@@ -117,4 +123,17 @@ export function parseManifest(bytes: Uint8Array): Manifest {
   if (!isHex(grant_sha256, 32)) bad("manifest: grant_sha256");
   if (!isInstant(created_at)) bad("manifest: created_at");
   return { user_id, device_id, seq, prev: prev as string | null, ciphertext_sha256, size, recipients: recipients as string[], grant_seq, grant_sha256 };
+}
+
+export function parseReceipt(bytes: Uint8Array): Receipt {
+  if (bytes.length > 1024) bad("receipt: too large");
+  const doc = parseJsonObject(bytes);
+  if (!doc) bad("receipt: not a JSON object");
+  checkType(doc, "receipt");
+  const { device_id, processor_id, seq, created_at } = doc;
+  if (typeof device_id !== "string" || !ID_RE.d.test(device_id)) bad("receipt: device_id");
+  if (typeof processor_id !== "string" || !ID_RE.p.test(processor_id)) bad("receipt: processor_id");
+  if (!isSafeInt(seq, 1)) bad("receipt: seq");
+  if (!isInstant(created_at)) bad("receipt: created_at");
+  return { device_id, processor_id, seq };
 }

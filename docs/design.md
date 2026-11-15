@@ -168,7 +168,8 @@ Plan: the free Workers plan allows 10 ms of CPU per request, which hashing an 8 
 |---|---|---|
 | `POST /v1/enroll` | new device + invite | Verify invite; create user if new; add device |
 | `PUT /v1/devices/{did}/grant` | device | Store grant if `grant_seq` is higher than current |
-| `GET /v1/devices/{did}/state` | device | `last_seq`, missing seqs, current `grant_seq`; stored batches, bytes and quota use, for display |
+| `GET /v1/devices/{did}/state` | device | `last_seq`, missing seqs, current `grant_seq`; stored batches, bytes and quota use, and processor receipts, for display |
+| `PUT /v1/devices/{did}/receipt` | listed processor (signed receipt) | Keep the processor's highest "I hold batches 1 to n"; the app verifies it with the key from the card and shows when each processor last collected |
 | `PUT /v1/devices/{did}/batches/{seq}` | device (signed manifest) | See 4.3 |
 | `GET /v1/streams` | processor | Devices whose current grant lists this processor, with device public key and `last_seq` |
 | `GET /v1/devices/{did}/batches?after=&limit=` | granted processor | Manifests and signatures |
@@ -201,7 +202,7 @@ Conventions are taken from `garmin-archive/garmin_archive.py`: one `manifest.jso
 |---|---|
 | `hka init [--recovery]` | Create processor identity (age + signing key); print the two-offline-copies warning. `--recovery` makes an offline-only identity whose card members add as a second recipient |
 | `hka card [--qr]` | Show the processor card for members to scan |
-| `hka pull` | Download new ciphertext and manifests into `inbox/`; verify |
+| `hka pull` | Download new ciphertext and manifests into `inbox/`; verify; send a signed receipt for the verified prefix |
 | `hka build` | Decrypt new batches; update day folders, index, summaries, archives |
 | `hka fhir map`, `hka fhir load` | Map changed days to FHIR R4 NDJSON; load into Medplum |
 | `hka run` | `pull` + `build` + `fhir map` (+ `load` if configured) |

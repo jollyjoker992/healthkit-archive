@@ -490,6 +490,7 @@ public actor Device {
             usage.checkedAt = now
             state.relayUsage = usage
         }
+        recordReceipts(s.receipts)
         if let since = state.rollbackSuspectedAt, let acked = state.rollbackAckedAtSuspicion {
             if now.timeIntervalSince(since) >= 600 {
                 if s.maxSeq < acked {
@@ -507,6 +508,19 @@ public actor Device {
             state.stop = .halted(reason: "this device is \(s.status) on the relay", since: now)
         }
         try save()
+    }
+
+    /// Keep the highest receipt per processor that verifies against this device's own grants.
+    func recordReceipts(_ signed: [Signed]) {
+        var known: [String: Processor] = [:]
+        for g in state.grants { for p in g.processors { known[p.id] = p } }
+        var kept = state.receipts ?? [:]
+        for s in signed {
+            guard let r = Receipt.verified(doc: s.doc, sig: s.sig, deviceID: state.deviceID, processors: known,
+                                           lastSealedSeq: state.lastSealedSeq) else { continue }
+            if r.seq > kept[r.processorID]?.seq ?? 0 { kept[r.processorID] = r }
+        }
+        if !kept.isEmpty { state.receipts = kept }
     }
 
     /// Re-read everything: the next pass reads every type from the beginning (for a newly added processor).

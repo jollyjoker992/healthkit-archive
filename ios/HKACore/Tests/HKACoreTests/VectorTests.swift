@@ -105,6 +105,27 @@ final class VectorTests: XCTestCase {
         XCTAssertThrowsError(try Processor.parseCard("hka-card:" + Encoding.b64u(Data(#"{"v":true,"t":"card"}"#.utf8))))
     }
 
+    func testReceipts() throws {
+        let d = try vectors("documents.json")
+        let keys = try vectors("keys.json")["keys"] as! [[String: String]]
+        let device = keys.first { $0["label"] == "device 1" }!["id"]!
+        var processors: [String: Processor] = [:]
+        for k in keys where k["label"]!.hasPrefix("processor") {
+            processors[k["id"]!] = Processor(id: k["id"]!, name: k["label"]!, ageRecipient: k["age_recipient"]!, signPub: k["pub"]!)
+        }
+        func check(_ doc: String, _ sig: String) -> Receipt? {
+            Receipt.verified(doc: Encoding.b64uDecode(doc)!, sig: sig, deviceID: device, processors: processors, lastSealedSeq: 3)
+        }
+        let valid = d["receipt"] as! [String: Any]
+        let r = check(valid["doc"] as! String, valid["sig"] as! String)
+        XCTAssertEqual(r?.processorID, valid["processor_id"] as? String)
+        XCTAssertEqual(r?.seq, valid["seq"] as? Int)
+        // Every invalid receipt is one a device must ignore (spec 4.5 device rules).
+        for c in d["invalid"] as! [[String: Any]] where c["kind"] as? String == "receipt" {
+            XCTAssertNil(check(c["doc"] as! String, c["sig"] as! String), c["note"] as! String)
+        }
+    }
+
     func testInstants() {
         XCTAssertEqual(Encoding.instant(Date(timeIntervalSince1970: 1794556800.1239)), "2026-11-13T08:00:00.123Z")
         XCTAssertEqual(Encoding.instant(Date(timeIntervalSince1970: -0.0005)), "1969-12-31T23:59:59.999Z")

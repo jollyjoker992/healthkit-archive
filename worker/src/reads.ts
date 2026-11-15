@@ -4,6 +4,7 @@ import { requireKind } from "./auth";
 import { fail, json } from "./errors";
 import { type BatchRow, type Ctx, type DeviceRow, type GrantRow, getDevice, maxGrant } from "./context";
 import { instant } from "./encoding";
+import { deviceReceipts } from "./receipts";
 import { parseSeq } from "./uploads";
 
 function requireOwnDevice(caller: Caller, deviceId: string): void {
@@ -40,6 +41,7 @@ export async function getState(ctx: Ctx, caller: Caller, deviceId: string): Prom
     bytes: usage?.bytes ?? 0,
     last_received_at: usage?.last_received_at ?? null,
     user_bytes: usage?.user_bytes ?? 0,
+    receipts: await deviceReceipts(ctx, deviceId),
   });
 }
 

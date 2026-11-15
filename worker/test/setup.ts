@@ -18,7 +18,7 @@ await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 import { beforeEach } from "vitest";
 
 beforeEach(async () => {
-  for (const table of ["batches", "grant_processors", "grants", "invites_used", "devices", "users"]) {
+  for (const table of ["receipts", "batches", "grant_processors", "grants", "invites_used", "devices", "users"]) {
     await env.DB.prepare(`DELETE FROM ${table}`).run();
   }
   let cursor: string | undefined;

@@ -174,6 +174,17 @@ struct BackupStatus {
 
     /// The processor side alarms after three silent days (design 5.3); warn the owner at the same point.
     static let staleAfter: TimeInterval = 3 * 86400
+    /// A processor that collects (sends receipts) but has not for this long, while newer uploads wait.
+    static let notCollectedAfter: TimeInterval = 7 * 86400
+
+    /// When the processors last collected, if that is too long ago. Only processors that have ever sent a
+    /// receipt count, so a recovery card that never collects (or an older processor) never raises this.
+    static func notCollectedSince(_ s: DeviceState, now: Date) -> Date? {
+        let current = Set(s.currentGrant?.processors.map(\.id) ?? [])
+        let receipts = (s.receipts ?? [:]).values.filter { current.contains($0.processorID) }
+        guard let newest = receipts.map(\.createdAt).max(), let held = receipts.map(\.seq).max() else { return nil }
+        return now.timeIntervalSince(newest) > notCollectedAfter && s.highestAcked > held ? newest : nil
+    }
 
     init(state s: DeviceState, waiting: Int, busy: Bool, now: Date = Date()) {
         func ago(_ d: Date) -> String { d.formatted(.relative(presentation: .named)) }
@@ -205,6 +216,9 @@ struct BackupStatus {
             if now.timeIntervalSince(last) > Self.staleAfter {
                 (level, title, detail) = (.attention, String(localized: "Backup is out of date"),
                                           String(localized: "Last backup \(ago(last)). Unlock the phone and tap Back Up Now."))
+            } else if let since = Self.notCollectedSince(s, now: now) {
+                (level, title, detail) = (.attention, String(localized: "Backup not collected"),
+                                          String(localized: "No processor has collected your backup since \(since.formatted(.dateTime.day().month(.abbreviated))). Ask your admin to check it."))
             } else {
                 (level, title, detail) = (.ok, String(localized: "Backed up"), String(localized: "Last backup \(ago(last))."))
             }
@@ -334,7 +348,18 @@ struct HomeView: View {
     var processorSection: some View {
         Section {
             ForEach(processors, id: \.id) { p in
-                Button { selected = p } label: { ChevronRow { Text(verbatim: p.name) } }
+                Button { selected = p } label: {
+                    ChevronRow {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: p.name)
+                            // Signed by the processor itself, so the server cannot fake it (spec 4.5).
+                            if let r = model.state?.receipts?[p.id] {
+                                Text("Collected \(r.createdAt.formatted(.relative(presentation: .named)))")
+                                    .font(.caption).foregroundStyle(Color(.secondaryLabel))
+                            }
+                        }
+                    }
+                }
             }
             if processors.isEmpty {
                 Text("No one yet").foregroundStyle(.secondary)

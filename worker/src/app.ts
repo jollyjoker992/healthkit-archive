@@ -6,6 +6,7 @@ import type { Ctx } from "./context";
 import { enroll } from "./enroll";
 import { HttpError, errorResponse, fail } from "./errors";
 import { getBatch, getState, listBatches, listGrants, listStreams, purgeDevice } from "./reads";
+import { putReceipt } from "./receipts";
 import { putBatch, putGrant, readBounded } from "./uploads";
 
 const D = "(d_[0-9a-f]{32})";
@@ -29,6 +30,7 @@ const routes: Route[] = [
   ["PUT", new RegExp(`^/v1/devices/${D}/grant$`), async (ctx, [d]) => putGrant(ctx, d, await readBody(ctx, 32 * 1024))],
   ["PUT", new RegExp(`^/v1/devices/${D}/batches/${SEQ}$`), (ctx, [d, s]) => putBatch(ctx, d, s)],
   ["GET", new RegExp(`^/v1/devices/${D}/state$`), async (ctx, [d]) => getState(ctx, await signed(ctx), d)],
+  ["PUT", new RegExp(`^/v1/devices/${D}/receipt$`), async (ctx, [d]) => putReceipt(ctx, d, await readBody(ctx, 2048))],
   ["POST", new RegExp(`^/v1/devices/${D}/purge$`), async (ctx, [d]) => purgeDevice(ctx, await signed(ctx), d)],
   ["GET", /^\/v1\/streams$/, async (ctx) => listStreams(ctx, await signed(ctx))],
   ["GET", new RegExp(`^/v1/devices/${D}/grants$`), async (ctx, [d]) => listGrants(ctx, await signed(ctx), d)],

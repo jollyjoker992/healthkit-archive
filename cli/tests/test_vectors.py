@@ -11,7 +11,7 @@ import pyrage
 
 from hka.build import decrypt_batch
 from hka.store import Identity
-from hkacommon.documents import parse_card, parse_grant, parse_manifest, verify_signed
+from hkacommon.documents import parse_card, parse_grant, parse_manifest, parse_receipt, verify_signed
 from hkacommon.encoding import FormatError, b64u_decode, is_hex, sha256_hex
 from hkacommon.keys import SigningKey, fingerprint, key_id, load_public_key, processor_fingerprint, public_bytes, verify
 
@@ -98,6 +98,11 @@ class Documents(unittest.TestCase):
             self.assertEqual(man.grant_sha256, g.sha256)
             self.assertEqual(sha256_hex(b64u_decode(m["ciphertext"])), man.ciphertext_sha256)
             prev = man.sha256
+        rc = d["receipt"]
+        r = parse_receipt(b64u_decode(rc["doc"]))
+        self.assertEqual((r.processor_id, r.seq, r.device_id), (rc["processor_id"], rc["seq"], g.device_id))
+        self.assertTrue(verify_signed(keys["processor 1"]["pub"], "receipt", r.raw, rc["sig"]))
+        self.assertFalse(verify_signed(keys["processor 1"]["pub"], "grant", r.raw, rc["sig"]))
 
     def test_invalid_documents_rejected_by_parsing_or_checks(self):
         d = load("documents.json")
@@ -117,6 +122,18 @@ class Documents(unittest.TestCase):
                     except FormatError:
                         bad = True
                     self.assertTrue(bad)
+                elif c["kind"] == "receipt":
+                    # What a device checks (spec 4.5): parses, signed by that listed processor, its own device,
+                    # seq at most what it sealed (3 here).
+                    raw = b64u_decode(c["doc"])
+                    try:
+                        r = parse_receipt(raw)
+                    except FormatError:
+                        continue
+                    listed = {p["id"]: p["sign_pub"] for p in grant.processors}
+                    ok = (r.processor_id in listed and verify_signed(listed[r.processor_id], "receipt", raw, c["sig"])
+                          and r.device_id == grant.device_id and r.seq <= 3)
+                    self.assertFalse(ok)
                 elif c["kind"] == "manifest":
                     raw = b64u_decode(c["manifest"])
                     ct = b64u_decode(c["ciphertext"])

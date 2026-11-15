@@ -349,6 +349,27 @@ def document_vectors() -> dict:
     add_manifest("signed by another device", "bad_signature", "server and processor",
                  manifest_doc(4, last, ct4), signer=DEVICE2)
 
+    def receipt_doc(**over) -> bytes:
+        fields = {"v": 1, "t": "receipt", "device_id": device_id, "processor_id": key_id("p", proc_pub), "seq": 3,
+                  "created_at": "2026-11-13T08:05:00.000Z"}
+        fields.update(over)
+        return compact(fields)
+
+    receipt = receipt_doc()
+
+    def add_receipt(note, expect, doc, signer=PROCESSOR, purpose="receipt"):
+        invalid.append({"note": note, "kind": "receipt", "path": f"/v1/devices/{device_id}/receipt", "doc": b64u(doc),
+                        "sig": b64u(sign(signer, purpose, doc)), "expect": expect})
+
+    add_receipt("signed by processor 2, claims processor 1", "bad_signature", receipt, signer=PROCESSOR2)
+    add_receipt("signed with purpose grant", "bad_signature", receipt, purpose="grant")
+    add_receipt("processor not listed by the device", "not_granted",
+                receipt_doc(processor_id=key_id("p", admin_pub)), signer=ADMIN)
+    add_receipt("seq 4 beyond the stored batches", "bad_request", receipt_doc(seq=4))
+    add_receipt("seq is a string", "bad_request", receipt_doc(seq="3"))
+    add_receipt("device_id of another device", "bad_request", receipt_doc(device_id=key_id("d", pub_bytes(DEVICE2))))
+    add_receipt("wrong document type", "bad_request", receipt_doc(t="grant"))
+
     return {
         "description": "Documents for one test user, device and two processors. 'invalid' cases are each a single "
                        "change against a valid state where manifests 1-3 and grant 1 are stored; 'expect' is the "
@@ -361,6 +382,8 @@ def document_vectors() -> dict:
         "enroll": {"body": b64u(enroll), "signature": b64u(sign(DEVICE, "enroll", enroll)), "device_id": device_id},
         "grant": {"doc": b64u(grant), "sig": b64u(sign(DEVICE, "grant", grant)), "grant_sha256": grant_hash},
         "manifests": manifests,
+        "receipt": {"doc": b64u(receipt), "sig": b64u(sign(PROCESSOR, "receipt", receipt)),
+                    "processor_id": key_id("p", proc_pub), "seq": 3},
         "invalid": invalid,
     }
 

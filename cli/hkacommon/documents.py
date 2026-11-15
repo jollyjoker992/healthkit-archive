@@ -160,3 +160,34 @@ def parse_manifest(raw: bytes) -> Manifest:
 
 def verify_signed(pub_b64u: str, purpose: str, raw: bytes, sig: str) -> bool:
     return verify(load_public_key(pub_b64u), purpose, raw, sig)
+
+
+# ---------------------------------------------------------------------------- receipt
+
+@dataclass(frozen=True)
+class Receipt:
+    raw: bytes
+    device_id: str
+    processor_id: str
+    seq: int
+    created_at: str
+
+
+def make_receipt(key: SigningKey, device_id: str, seq: int, created_at: str) -> tuple[bytes, str]:
+    """A processor's signed statement that it holds the device's batches 1 to seq (spec 4.5)."""
+    raw = compact_json({"v": 1, "t": "receipt", "device_id": device_id, "processor_id": key.id("p"), "seq": seq,
+                        "created_at": created_at})
+    return raw, key.sign("receipt", raw)
+
+
+def parse_receipt(raw: bytes) -> Receipt:
+    _check(len(raw) <= 1024, "receipt: too large")
+    doc = parse_json_object(raw)
+    _check_type(doc, "receipt")
+    _check(isinstance(doc.get("device_id"), str) and ID_RE["d"].fullmatch(doc["device_id"]) is not None,
+           "receipt: device_id")
+    _check(isinstance(doc.get("processor_id"), str) and ID_RE["p"].fullmatch(doc["processor_id"]) is not None,
+           "receipt: processor_id")
+    _check(is_int(doc.get("seq"), 1), "receipt: seq")
+    _check(is_instant(doc.get("created_at")), "receipt: created_at")
+    return Receipt(raw, doc["device_id"], doc["processor_id"], doc["seq"], doc["created_at"])

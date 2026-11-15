@@ -179,6 +179,16 @@
         }
       }
     },
+    "Backup not collected": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bản sao lưu chưa được nhận"
+          }
+        }
+      }
+    },
     "Backup paused": {
       "localizations": {
         "vi": {
@@ -255,6 +265,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Đã kiểm tra %@. Kéo xuống để kiểm tra lại."
+          }
+        }
+      }
+    },
+    "Collected %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã nhận %@"
           }
         }
       }
@@ -394,7 +414,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mỗi lần tải lên đều được mã hóa trên iPhone này. Chỉ các bộ xử lý của bạn mới mở được."
+            "value": "Mỗi lần tải lên đều được mã hóa trên iPhone này. Chỉ các máy giải mã của bạn mới mở được."
           }
         }
       }
@@ -665,6 +685,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chưa có máy nào"
+          }
+        }
+      }
+    },
+    "No processor has collected your backup since %@. Ask your admin to check it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chưa máy giải mã nào nhận bản sao lưu của bạn kể từ %@. Hãy nhờ người quản lý kiểm tra."
           }
         }
       }

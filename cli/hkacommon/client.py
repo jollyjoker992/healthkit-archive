@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-from .encoding import sha256_hex
+from .encoding import b64u_encode, compact_json, sha256_hex
 from .keys import SigningKey
 
 USER_AGENT = "hka/0.1"
@@ -41,11 +41,16 @@ class Client:
                 "User-Agent": USER_AGENT}
 
     def request(self, method: str, target: str, *, raw: bool = False, max_bytes: int = MAX_JSON_BYTES,
-                _retry: bool = True):
-        """Signed request with an empty body. Returns parsed JSON, or bytes when raw=True.
+                _retry: bool = True, document: dict | None = None):
+        """Signed request with an empty body, or, with `document`, an unsigned JSON body that authenticates
+        itself (spec 4.2, 4.5). Returns parsed JSON, or bytes when raw=True.
 
         Reads at most max_bytes; a larger response is an error (the relay is not trusted)."""
-        req = urllib.request.Request(self.origin + target, method=method, headers=self._headers(method, target, b""))
+        if document is None:
+            req = urllib.request.Request(self.origin + target, method=method, headers=self._headers(method, target, b""))
+        else:
+            req = urllib.request.Request(self.origin + target, method=method, data=compact_json(document),
+                                         headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = resp.read(max_bytes + 1)
@@ -62,7 +67,7 @@ class Client:
             err = ApiError(exc.code, body.get("error", "http_error"), body.get("message", str(exc)), body)
             if err.code == "stale_timestamp" and _retry and isinstance(body.get("server_time"), int):
                 self.clock_skew = body["server_time"] - int(time.time())
-                return self.request(method, target, raw=raw, max_bytes=max_bytes, _retry=False)
+                return self.request(method, target, raw=raw, max_bytes=max_bytes, _retry=False, document=document)
             raise err from None
         if len(data) > max_bytes:
             raise ApiError(0, "response_too_large", f"response larger than {max_bytes} bytes", {})
@@ -84,3 +89,7 @@ class Client:
 
     def delete(self, target: str):
         return self.request("DELETE", target)
+
+    def put_document(self, target: str, doc: bytes, sig: str):
+        """Upload a self-authenticating document as {"doc", "sig"} (no request signature)."""
+        return self.request("PUT", target, document={"doc": b64u_encode(doc), "sig": sig})

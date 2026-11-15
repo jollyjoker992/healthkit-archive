@@ -44,6 +44,12 @@
       "ciphertext": "mjrRQ5QvryU7mpgBU4V2AezT_C4QSGizxBRwCV2dEC2aOtFDlC-vJTuamAFThXYB7NP8LhBIaLPEFHAJXZ0QLZo60UOUL68lO5qYAVOFdgHs0_wuEEhos8QUcAldnRAtmjrRQ5QvryU7mpgBU4V2AezT_C4QSGizxBRwCV2dEC2aOtFDlC-vJTuamAFThXYB7NP8LhBIaLPEFHAJXZ0QLZo60UOUL68lO5qYAVOFdgHs0_wuEEhos8QUcAldnRAtmjrRQ5QvryU7mpgBU4V2AezT_C4QSGizxBRwCV2dEC2aOtFDlC-vJTuamAFThXYB7NP8LhBIaLPEFHAJXZ0QLZo60UOUL68lO5qYAVOFdgHs0_wuEEhos8QUcAldnRAt"
     }
   ],
+  "receipt": {
+    "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjozLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+    "sig": "orcjyvUCuDZdrDxDZvUaWhesK4HqOuj9P0JZrFqQ8zATPYeiGURrPupdaQv7cYm40MZa_WuHAtIKVM4ad_ylhQ",
+    "processor_id": "p_af76f8aa6866b1f214cbf4f78ebcbf56",
+    "seq": 3
+  },
   "invalid": [
     {
       "note": "server is another origin",
@@ -240,6 +246,62 @@
       "ciphertext": "K4Vd6zZrMH_Uf4odob6YxrWAAULpOet-WzZSbBGsZ_0rhV3rNmswf9R_ih2hvpjGtYABQuk5635bNlJsEaxn_SuFXes2azB_1H-KHaG-mMa1gAFC6Tnrfls2UmwRrGf9K4Vd6zZrMH_Uf4odob6YxrWAAULpOet-WzZSbBGsZ_0rhV3rNmswf9R_ih2hvpjGtYABQuk5635bNlJsEaxn_SuFXes2azB_1H-KHaG-mMa1gAFC6Tnrfls2UmwRrGf9K4Vd6zZrMH_Uf4odob6YxrWAAULpOet-WzZSbBGsZ_0rhV3rNmswf9R_ih2hvpjGtYABQuk5635bNlJsEaxn_SuFXes2azB_1H-KHaG-mMa1gAFC6Tnrfls2UmwRrGf9K4Vd6zZrMH_Uf4odob6YxrWAAULpOet-WzZSbBGsZ_0rhV3rNmswf9R_ih2hvpjGtYABQuk5635bNlJsEaxn_SuFXes2azB_1H-KHaG-mMa1gAFC6Tnrfls2UmwRrGf9",
       "expect": "bad_signature",
       "checked_by": "server and processor"
+    },
+    {
+      "note": "signed by processor 2, claims processor 1",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjozLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+      "sig": "x93h0I7ahwmkQm8giqghAzAQ89UokJZ1zzahI1XG0od3hco9RTg48GybL_Qf-IYw8eMjiqhHTQd28kjYmPuI0w",
+      "expect": "bad_signature"
+    },
+    {
+      "note": "signed with purpose grant",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjozLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+      "sig": "N4ON3TdDN4cUycGs9taa597lKepQIriojpnie6NZQxNJV9WKla8gJSs6PZd6Irfc-cOeUFspB9Jfqhbp8i5jow",
+      "expect": "bad_signature"
+    },
+    {
+      "note": "processor not listed by the device",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2RkMzE4OTZjODE4MDJlYTNlOTc0ODQ1MjU4OGIwZDIzIiwic2VxIjozLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+      "sig": "2h_CrEA9dAFxCpnveAq1k1cRrTEdCFY-qEnyT9VlVGNP3npeJOiKZODwpFPWtTe3DVNZ-9jSDUG7Crr2ewsGeg",
+      "expect": "not_granted"
+    },
+    {
+      "note": "seq 4 beyond the stored batches",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjo0LCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+      "sig": "DCOn99ZorveDZCdgkpVXnRnZm5UKGOpDVtQHxXJkW1XTFu7qZ9CIgR_PYNtuwNUWjdzL2X9hUCrubwxERTzYag",
+      "expect": "bad_request"
+    },
+    {
+      "note": "seq is a string",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfNjE3ODczZTI0MTliYzk2NDJiZmY1MzYzZmM3YTRkODQiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjoiMyIsImNyZWF0ZWRfYXQiOiIyMDI2LTExLTEzVDA4OjA1OjAwLjAwMFoifQ",
+      "sig": "Ne7fjwy0j14Shiwbv0g7HUTW4kQmPbuSNq_uOq4rnty38E9c0uOLUaMG2Y5Inj9E_mN-PcYWtqlUuzJR_0s8BQ",
+      "expect": "bad_request"
+    },
+    {
+      "note": "device_id of another device",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoicmVjZWlwdCIsImRldmljZV9pZCI6ImRfM2FmNDAzOTg4NmI2YmQ0NTAxMWU1ZDA3NTZlZThlMWMiLCJwcm9jZXNzb3JfaWQiOiJwX2FmNzZmOGFhNjg2NmIxZjIxNGNiZjRmNzhlYmNiZjU2Iiwic2VxIjozLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xM1QwODowNTowMC4wMDBaIn0",
+      "sig": "m4hJxnSdz2O1PhCQa9gx6q9HuQFvZJZW-OstVzwlvjd5pNTiPXciKdpwty420YYqmBcV5tssssBvoTXi9URWew",
+      "expect": "bad_request"
+    },
+    {
+      "note": "wrong document type",
+      "kind": "receipt",
+      "path": "/v1/devices/d_617873e2419bc9642bff5363fc7a4d84/receipt",
+      "doc": "eyJ2IjoxLCJ0IjoiZ3JhbnQiLCJkZXZpY2VfaWQiOiJkXzYxNzg3M2UyNDE5YmM5NjQyYmZmNTM2M2ZjN2E0ZDg0IiwicHJvY2Vzc29yX2lkIjoicF9hZjc2ZjhhYTY4NjZiMWYyMTRjYmY0Zjc4ZWJjYmY1NiIsInNlcSI6MywiY3JlYXRlZF9hdCI6IjIwMjYtMTEtMTNUMDg6MDU6MDAuMDAwWiJ9",
+      "sig": "G7hnB4TnVyZzNUddrBneN68ca3aI8_iEBIAMJjNNt-lVfSl2ypycDP5-3wG13MVUr2xcRR_BneCUsA1BfwUuZw",
+      "expect": "bad_request"
     }
   ]
 }
