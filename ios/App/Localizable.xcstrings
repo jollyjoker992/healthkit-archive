@@ -16,7 +16,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ đã lưu trên máy chủ"
+            "value": "Đã lưu %@ trên máy chủ"
           }
         }
       }
@@ -44,7 +44,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld tệp đã mã hóa đang chờ. iOS sẽ tự tải lên khi có thể."
+            "value": "%lld tệp đã mã hóa đang chờ tải lên. iPhone sẽ tự gửi đi khi chạy nền."
           }
         }
       }
@@ -54,7 +54,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bản sao lưu riêng tư cho dữ liệu sức khỏe của bạn, lưu trên máy chủ của gia đình."
+            "value": "Bản sao lưu riêng tư dữ liệu sức khỏe của bạn, do gia đình tự quản lý."
           }
         }
       }
@@ -79,6 +79,16 @@
         }
       }
     },
+    "About": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giới thiệu"
+          }
+        }
+      }
+    },
     "Add Processor": {
       "localizations": {
         "vi": {
@@ -99,6 +109,16 @@
         }
       }
     },
+    "All your past Health data, sent again. This only happens after you tap Re-send All History, so a newly added processor can read your older data too.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gửi lại toàn bộ dữ liệu sức khỏe từ trước đến nay. Việc này chỉ xảy ra khi bạn chạm Gửi lại toàn bộ dữ liệu, để máy giải mã mới thêm cũng đọc được dữ liệu cũ."
+          }
+        }
+      }
+    },
     "Allow the camera in Settings, or paste the code instead.": {
       "localizations": {
         "vi": {
@@ -109,12 +129,22 @@
         }
       }
     },
+    "Anything new in Health since the last upload: steps, heart rate, workouts, sleep and more. Most of your backup is this.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mọi dữ liệu mới trong Sức khỏe kể từ lần tải lên trước: số bước, nhịp tim, bài tập, giấc ngủ và nhiều loại khác. Đây là phần chính của bản sao lưu."
+          }
+        }
+      }
+    },
     "Ask your family’s admin for an invite code.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hãy xin mã tham gia từ người quản lý của gia đình."
+            "value": "Hãy nhờ người quản lý trong gia đình gửi mã mời."
           }
         }
       }
@@ -184,7 +214,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bản sao lưu chưa được nhận"
+            "value": "Bản sao lưu chưa được lấy về"
           }
         }
       }
@@ -194,7 +224,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sao lưu tạm dừng"
+            "value": "Đã tạm dừng sao lưu"
           }
         }
       }
@@ -204,7 +234,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sao lưu đã dừng"
+            "value": "Đã ngừng sao lưu"
           }
         }
       }
@@ -249,22 +279,42 @@
         }
       }
     },
+    "Change access in the Health app": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thay đổi quyền trong ứng dụng Sức khỏe"
+          }
+        }
+      }
+    },
     "Check these with your admin. The invite can be used once.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hãy xác nhận thông tin này với người quản lý. Mỗi mã tham gia chỉ dùng được một lần."
+            "value": "Hãy kiểm tra lại thông tin này với người quản lý. Mỗi mã mời chỉ dùng được một lần."
           }
         }
       }
     },
-    "Checked %@. Pull down to check again.": {
+    "Checked at %@. Pull down to check again.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã kiểm tra %@. Kéo xuống để kiểm tra lại."
+            "value": "Kiểm tra lúc %@. Kéo xuống để kiểm tra lại."
+          }
+        }
+      }
+    },
+    "Choosing what is shared": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chọn dữ liệu được chia sẻ"
           }
         }
       }
@@ -274,7 +324,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã nhận %@"
+            "value": "Đã lấy về %@"
           }
         }
       }
@@ -284,7 +334,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hãy so với mã đang hiển thị trên máy đó. Nếu giống nhau, máy này sẽ đọc được mọi dữ liệu sao lưu từ bây giờ."
+            "value": "Hãy so với mã đối chiếu đang hiện trên máy đó. Nếu giống nhau, máy này sẽ đọc được mọi dữ liệu sao lưu từ nay về sau."
           }
         }
       }
@@ -344,7 +394,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Không gửi lại được dữ liệu"
+            "value": "Không gửi lại được toàn bộ dữ liệu"
           }
         }
       }
@@ -394,7 +444,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dữ liệu được mã hóa trước khi rời khỏi máy. Máy chủ chỉ lưu giữ, không thể đọc được."
+            "value": "Dữ liệu được mã hóa trước khi rời khỏi điện thoại. Máy chủ chỉ cất giữ, không đọc được."
           }
         }
       }
@@ -404,7 +454,27 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loại dữ liệu chưa cho phép"
+            "value": "Loại dữ liệu chưa được cấp quyền"
+          }
+        }
+      }
+    },
+    "Disclaimer": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miễn trừ trách nhiệm"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xong"
           }
         }
       }
@@ -424,7 +494,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lịch sử trước đây"
+            "value": "Dữ liệu trước đây"
           }
         }
       }
@@ -474,7 +544,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hoàn tất cài đặt"
+            "value": "Hoàn tất thiết lập"
           }
         }
       }
@@ -484,7 +554,37 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sao lưu dữ liệu sức khỏe"
+            "value": "Sao lưu sức khỏe"
+          }
+        }
+      }
+    },
+    "Health Backup is free and open source. Anyone can read the code to check what it does with your data.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao lưu sức khỏe là ứng dụng miễn phí, mã nguồn mở. Ai cũng có thể xem mã nguồn để biết ứng dụng làm gì với dữ liệu của bạn."
+          }
+        }
+      }
+    },
+    "Health Backup is not a medical device and does not give medical advice. It is provided as is, without any warranty. It is not made by, or connected with, Apple. Apple Health and iPhone are trademarks of Apple Inc.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao lưu sức khỏe không phải là thiết bị y tế và không đưa ra lời khuyên y tế. Ứng dụng được cung cấp nguyên trạng, không kèm bất kỳ bảo đảm nào. Ứng dụng không do Apple phát triển và không liên kết với Apple. Apple Health và iPhone là nhãn hiệu của Apple Inc."
+          }
+        }
+      }
+    },
+    "Health Backup keeps a private copy of your Apple Health data, so it is not lost if your iPhone is lost, broken or replaced.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sao lưu sức khỏe giữ một bản sao riêng tư của dữ liệu Apple Health, để dữ liệu không mất khi iPhone bị mất, bị hỏng hay khi bạn đổi máy mới."
           }
         }
       }
@@ -494,7 +594,17 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "iOS chỉ cho phép đọc dữ liệu sức khỏe khi iPhone đang mở khóa."
+            "value": "iPhone chỉ cho phép đọc dữ liệu sức khỏe khi máy đang mở khóa."
+          }
+        }
+      }
+    },
+    "How It Works": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cách hoạt động"
           }
         }
       }
@@ -504,7 +614,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nếu máy này mất chìa khóa, bản sao lưu sẽ không mở được nữa. Nên thêm thẻ khôi phục làm máy thứ hai."
+            "value": "Nếu máy này mất chìa khóa, bản sao lưu sẽ không mở được nữa. Nên thêm thẻ khôi phục làm máy giải mã thứ hai."
           }
         }
       }
@@ -544,7 +654,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vui lòng giữ ứng dụng mở cho đến khi xong."
+            "value": "Hãy để ứng dụng mở cho đến khi xong."
           }
         }
       }
@@ -584,7 +694,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lần đọc gần nhất"
+            "value": "Đọc Sức khỏe lần cuối"
           }
         }
       }
@@ -594,7 +704,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nhận gần nhất"
+            "value": "Nhận lần cuối"
           }
         }
       }
@@ -604,7 +714,27 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lần tải lên gần nhất"
+            "value": "Tải lên lần cuối"
+          }
+        }
+      }
+    },
+    "License: Apache 2.0": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giấy phép: Apache 2.0"
+          }
+        }
+      }
+    },
+    "Locked before it leaves": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Được khóa trước khi gửi đi"
           }
         }
       }
@@ -644,7 +774,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dữ liệu Sức khỏe mới"
+            "value": "Dữ liệu sức khỏe mới"
           }
         }
       }
@@ -674,7 +804,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tiếp theo, iOS sẽ hỏi bạn muốn chia sẻ những dữ liệu sức khỏe nào. Hãy chọn Bật tất cả để sao lưu đầy đủ. Ứng dụng chỉ đọc, không thay đổi dữ liệu của bạn."
+            "value": "Tiếp theo, iPhone sẽ hỏi bạn muốn chia sẻ những dữ liệu sức khỏe nào. Hãy chọn Bật tất cả để sao lưu đầy đủ. Ứng dụng chỉ đọc, không thay đổi dữ liệu của bạn."
           }
         }
       }
@@ -694,7 +824,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chưa máy giải mã nào nhận bản sao lưu của bạn kể từ %@. Hãy nhờ người quản lý kiểm tra."
+            "value": "Chưa máy giải mã nào lấy bản sao lưu về kể từ %@. Hãy nhờ người quản lý kiểm tra."
           }
         }
       }
@@ -739,6 +869,16 @@
         }
       }
     },
+    "Oldest: #%lld, %@": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cũ nhất: #%1$lld, %2$@"
+          }
+        }
+      }
+    },
     "On the server": {
       "localizations": {
         "vi": {
@@ -759,12 +899,52 @@
         }
       }
     },
+    "Once a day, the last two days are sent again to fill any gaps. It also tells your family’s computer that this iPhone is still backing up, so it is sent even when nothing is new.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mỗi ngày một lần, dữ liệu hai ngày gần nhất được gửi lại để bù chỗ có thể bị sót. Việc này cũng báo cho máy tính của gia đình biết iPhone vẫn đang sao lưu, nên vẫn được gửi kể cả khi không có gì mới."
+          }
+        }
+      }
+    },
+    "Once a week, a count of how many records you have each day, not the records themselves. Your family’s computer uses it to check that nothing is missing.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mỗi tuần một lần, chỉ gửi số lượng bản ghi của từng ngày, không gửi nội dung. Máy tính của gia đình dùng số này để kiểm tra xem có thiếu gì không."
+          }
+        }
+      }
+    },
     "Only the processors you add can unlock your backup. You can remove them later.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chỉ những máy giải mã bạn thêm vào mới mở được bản sao lưu. Bạn có thể gỡ chúng bất cứ lúc nào."
+            "value": "Chỉ những máy giải mã bạn thêm vào mới mở được bản sao lưu. Bạn có thể gỡ chúng sau này."
+          }
+        }
+      }
+    },
+    "Only the processors you add can unlock your data. A processor is a computer that holds a key, usually your family’s computer. Adding a recovery card as a second one means a lost key does not mean lost data.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ những máy giải mã bạn thêm vào mới mở được dữ liệu. Máy giải mã là máy tính giữ chìa khóa, thường là máy tính của gia đình. Thêm thẻ khôi phục làm máy thứ hai thì lỡ mất một chìa khóa cũng không mất dữ liệu."
+          }
+        }
+      }
+    },
+    "Open Health": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở Sức khỏe"
           }
         }
       }
@@ -779,12 +959,32 @@
         }
       }
     },
+    "Open source": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mã nguồn mở"
+          }
+        }
+      }
+    },
+    "Open the Health app, tap your picture, then Apps, then Health Backup. Turn on everything you want backed up.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở ứng dụng Sức khỏe, chạm vào ảnh đại diện, chọn Ứng dụng, rồi chọn Sao lưu sức khỏe. Bật mọi mục bạn muốn sao lưu."
+          }
+        }
+      }
+    },
     "Point the camera at the QR code shown by “hka card”.": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đưa camera vào mã QR mà lệnh “hka card” hiển thị trên máy tính."
+            "value": "Hướng camera vào mã QR mà lệnh “hka card” hiển thị trên máy tính."
           }
         }
       }
@@ -794,7 +994,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đưa camera vào mã QR tham gia mà người quản lý gửi cho bạn."
+            "value": "Hướng camera vào mã QR mời mà người quản lý gửi cho bạn."
           }
         }
       }
@@ -829,16 +1029,6 @@
         }
       }
     },
-    "Recent uploads": {
-      "localizations": {
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Các lần tải lên gần đây"
-          }
-        }
-      }
-    },
     "Remove %@?": {
       "localizations": {
         "vi": {
@@ -864,7 +1054,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kiểm tra quyền đọc dữ liệu sức khỏe"
+            "value": "Xem lại quyền đọc dữ liệu sức khỏe"
           }
         }
       }
@@ -874,7 +1064,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tự động chạy nền"
+            "value": "Tự sao lưu ở chế độ nền"
           }
         }
       }
@@ -884,7 +1074,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quét mã tham gia"
+            "value": "Quét mã mời"
           }
         }
       }
@@ -895,6 +1085,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quét thẻ máy giải mã"
+          }
+        }
+      }
+    },
+    "Sending something twice is safe. Your family’s computer recognises copies and keeps each record once.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gửi trùng không sao cả. Máy tính của gia đình nhận ra bản trùng và chỉ giữ mỗi bản ghi một lần."
           }
         }
       }
@@ -915,6 +1115,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dung lượng"
+          }
+        }
+      }
+    },
+    "Source Code on GitHub": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mã nguồn trên GitHub"
           }
         }
       }
@@ -979,6 +1189,16 @@
         }
       }
     },
+    "The app backs up by itself in the background. iPhone only lets apps read Health data while the phone is unlocked, so backups happen while you use your phone. You can also tap Back Up Now.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ứng dụng tự sao lưu ở chế độ nền. iPhone chỉ cho phép đọc dữ liệu sức khỏe khi máy đang mở khóa, nên việc sao lưu diễn ra trong lúc bạn dùng điện thoại. Bạn cũng có thể chạm Sao lưu ngay."
+          }
+        }
+      }
+    },
     "The server has no room left for your backup. Ask your admin to raise the limit.": {
       "localizations": {
         "vi": {
@@ -1014,7 +1234,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "iPhone này sẽ xóa chìa khóa hiện tại và cần mã tham gia mới. Hãy nhờ người quản lý gỡ thiết bị cũ trước. Dữ liệu đã sao lưu vẫn đọc được bình thường."
+            "value": "iPhone này sẽ xóa chìa khóa hiện tại và cần mã mời mới. Hãy nhờ người quản lý gỡ thiết bị cũ trước. Dữ liệu đã sao lưu vẫn đọc được bình thường."
           }
         }
       }
@@ -1044,7 +1264,37 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Để thay đổi quyền sau này, hãy mở ứng dụng Sức khỏe, chạm vào ảnh đại diện, rồi chọn Ứng dụng."
+            "value": "Để thay đổi dữ liệu được chia sẻ sau này, hãy mở ứng dụng Sức khỏe, chạm vào ảnh đại diện, rồi chọn Ứng dụng."
+          }
+        }
+      }
+    },
+    "Types of Upload": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các loại tải lên"
+          }
+        }
+      }
+    },
+    "Uploaded": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã tải lên"
+          }
+        }
+      }
+    },
+    "Uploads": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các lần tải lên"
           }
         }
       }
@@ -1069,6 +1319,26 @@
         }
       }
     },
+    "Usually nothing. If the top of the main screen shows a warning, follow what it says, or ask your family’s admin.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thường thì không cần làm gì. Nếu đầu màn hình chính hiện cảnh báo, hãy làm theo hướng dẫn, hoặc hỏi người quản lý của gia đình."
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phiên bản"
+          }
+        }
+      }
+    },
     "Waiting to upload": {
       "localizations": {
         "vi": {
@@ -1089,6 +1359,36 @@
         }
       }
     },
+    "What it does": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ứng dụng làm gì"
+          }
+        }
+      }
+    },
+    "What you need to do": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bạn cần làm gì"
+          }
+        }
+      }
+    },
+    "When it backs up": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khi nào sao lưu"
+          }
+        }
+      }
+    },
     "Who can read this backup": {
       "localizations": {
         "vi": {
@@ -1099,12 +1399,42 @@
         }
       }
     },
+    "Who can unlock it": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ai mở được dữ liệu"
+          }
+        }
+      }
+    },
     "You choose who can read it": {
       "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bạn quyết định ai được đọc"
+          }
+        }
+      }
+    },
+    "Your data is locked (encrypted) on this iPhone before it is sent. The server only stores locked files. It cannot open them, and neither can anyone who breaks into it.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dữ liệu được khóa (mã hóa) ngay trên iPhone này trước khi gửi đi. Máy chủ chỉ lưu các tệp đã khóa. Máy chủ không mở được, kẻ xâm nhập máy chủ cũng không."
+          }
+        }
+      }
+    },
+    "iPhone asks about each type of Health data only once. To change what Health Backup can read, open Health, tap your picture, then Apps, then Health Backup.": {
+      "localizations": {
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone chỉ hỏi quyền cho mỗi loại dữ liệu sức khỏe một lần. Để thay đổi những gì Sao lưu sức khỏe được đọc, hãy mở Sức khỏe, chạm vào ảnh đại diện, chọn Ứng dụng, rồi chọn Sao lưu sức khỏe."
           }
         }
       }

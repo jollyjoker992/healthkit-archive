@@ -253,6 +253,7 @@ struct HomeView: View {
     @State var selected: Processor?
     @State var confirmStartOver = false
     @State var showDetails = false
+    @State var showAbout = false
 
     var processors: [Processor] { model.state?.currentGrant?.processors ?? [] }
 
@@ -272,6 +273,11 @@ struct HomeView: View {
             .refreshable { await model.refreshFromRelay() }
             .navigationDestination(item: $selected) { ProcessorDetail(processor: $0, isLast: processors.count <= 1) }
             .navigationDestination(isPresented: $showDetails) { BackupDetailsView() }
+            .toolbar {
+                Button { showAbout = true } label: { Image(systemName: "info.circle") }
+                    .accessibilityLabel(Text("About"))
+            }
+            .sheet(isPresented: $showAbout) { AboutView() }
             .sheet(isPresented: $scanning) {
                 CodeScanner(title: "Scan Processor Card", prefix: "hka-card:",
                             hint: "Point the camera at the QR code shown by “hka card”.") { text in
@@ -295,7 +301,8 @@ struct HomeView: View {
                 case "add-card": candidate = AppModel.debugEnv("HKA_DEBUG_CARD2").flatMap { try? Processor.parseCard($0) }
                 case "processor": selected = processors.last
                 case "start-over": confirmStartOver = true
-                case "details", "resend", "bottom": showDetails = true
+                case "details", "resend", "bottom", "uploads", "health-hint": showDetails = true
+                case "about", "how-it-works", "upload-kinds": showAbout = true
                 case "error": model.failure = Failure(title: String(localized: "Couldn’t back up"), detail: "network: the relay could not be reached")
                 default: break
                 }
@@ -395,11 +402,12 @@ struct ChevronRow<Label: View>: View {
 
 // MARK: backup details
 
-/// Everything a member rarely needs: what the server holds, what this iPhone is doing, recent
-/// uploads, this iPhone's identity, and the advanced actions.
+/// Everything a member rarely needs: what the server holds, what this iPhone is doing, a link to
+/// the uploads, this iPhone's identity, and the advanced actions.
 struct BackupDetailsView: View {
     @EnvironmentObject var model: AppModel
     @State var confirmResend = false
+    @State var showUploads = false
 
     var processors: [Processor] { model.state?.currentGrant?.processors ?? [] }
 
@@ -409,7 +417,9 @@ struct BackupDetailsView: View {
                 if let s = model.state {
                     serverSection(s)
                     phoneActivitySection(s)
-                    uploadsSection(s)
+                    Section {
+                        Button { showUploads = true } label: { ChevronRow { Text("Uploads") } }
+                    }
                     phoneSection(s)
                     advancedSection.id("advanced")
                 }
@@ -421,12 +431,22 @@ struct BackupDetailsView: View {
                     proxy.scrollTo("advanced", anchor: .bottom)
                     if AppModel.debugScreen == "resend" { confirmResend = true }
                 }
+                if AppModel.debugScreen == "uploads" { showUploads = true }
+                if AppModel.debugScreen == "health-hint" { model.showHealthHint = true }
                 #endif
                 await model.refreshFromRelay()
             }
         }
         .navigationTitle("Backup Details").navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.refreshFromRelay() }
+        .navigationDestination(isPresented: $showUploads) { UploadsView() }
+        // On the screen, not the button: the button's row may not be built when this is shown.
+        .alert("Change access in the Health app", isPresented: $model.showHealthHint) {
+            Button("Open Health") { UIApplication.shared.open(AppLinks.health) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("iPhone asks about each type of Health data only once. To change what Health Backup can read, open Health, tap your picture, then Apps, then Health Backup.")
+        }
     }
 
     /// Day, month and time: short enough to stay on one line beside its label.
@@ -453,7 +473,7 @@ struct BackupDetailsView: View {
             Text("On the server")
         } footer: {
             if let u = s.relayUsage {
-                Text("Checked \(u.checkedAt.formatted(.relative(presentation: .named))). Pull down to check again.")
+                Text("Checked at \(u.checkedAt.formatted(date: .omitted, time: .shortened)). Pull down to check again.")
             }
         }
     }
@@ -472,26 +492,6 @@ struct BackupDetailsView: View {
                     Text(verbatim: e).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
-        }
-    }
-
-    func uploadsSection(_ s: DeviceState) -> some View {
-        let done = s.recentUploads ?? []
-        return Section {
-            ForEach(model.outbox.reversed(), id: \.seq) { e in
-                UploadRow(seq: e.seq, reason: e.reason, size: e.size, date: e.createdAt,
-                          waiting: true, problem: e.lastError)
-            }
-            ForEach(done, id: \.seq) { r in
-                UploadRow(seq: r.seq, reason: r.reason, size: r.size, date: r.uploadedAt, waiting: false, problem: nil)
-            }
-            if model.outbox.isEmpty && done.isEmpty {
-                Text("None yet").foregroundStyle(.secondary)
-            }
-        } header: {
-            Text("Recent uploads")
-        } footer: {
-            Text("Each upload is encrypted on this iPhone. Only your processors can open it.")
         }
     }
 
@@ -514,7 +514,7 @@ struct BackupDetailsView: View {
 
     var advancedSection: some View {
         Section {
-            Button("Review Health Access") { model.requestHealthAccess() }.disabled(model.busy)
+            Button("Review Health Access") { model.reviewHealthAccess() }.disabled(model.busy)
             Button("Re-send All History…") { confirmResend = true }.disabled(model.busy || processors.isEmpty)
                 // Attached to the button so the dialog appears where the tap was.
                 .confirmationDialog("Re-send all history?", isPresented: $confirmResend, titleVisibility: .visible) {
@@ -529,37 +529,61 @@ struct BackupDetailsView: View {
     }
 }
 
-/// One upload: why it was made, when, its size, and whether the server has it yet.
+/// For the admin more than the member: uploads still on this iPhone in one line (the oldest shows
+/// whether something is stuck), then the last uploads the server confirmed.
+struct UploadsView: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        let done = model.state?.recentUploads ?? []
+        List {
+            if let oldest = model.outbox.first {
+                Section {
+                    VStack(alignment: .leading, spacing: 2) {
+                        LabeledContent("Waiting to upload", value: model.outboxCount.formatted())
+                        Text("Oldest: #\(oldest.seq), \(BackupDetailsView.format(oldest.createdAt))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    if let problem = model.state?.lastError { Text(verbatim: problem) }
+                }
+            }
+            Section {
+                ForEach(done, id: \.seq) { r in
+                    UploadRow(seq: r.seq, reason: r.reason, size: r.size, date: r.uploadedAt)
+                }
+                if done.isEmpty { Text("None yet").foregroundStyle(.secondary) }
+            } header: {
+                Text("Uploaded")
+            } footer: {
+                Text("Each upload is encrypted on this iPhone. Only your processors can open it.")
+            }
+        }
+        .navigationTitle("Uploads").navigationBarTitleDisplayMode(.inline)
+        .refreshable { await model.refreshFromRelay() }
+        .toolbar {
+            NavigationLink { UploadKindsView() } label: { Image(systemName: "info.circle") }
+                .accessibilityLabel(Text("Types of Upload"))
+        }
+    }
+}
+
+/// One confirmed upload: why it was made, when, and its size.
 struct UploadRow: View {
     let seq: Int
     let reason: String
     let size: Int
     let date: Date
-    let waiting: Bool
-    let problem: String?
 
-    var title: String {
-        switch reason {
-        case "sync": String(localized: "New Health data")
-        case "backfill": String(localized: "Earlier history")
-        case "resend": String(localized: "Daily check")
-        case "census": String(localized: "Weekly count")
-        default: reason
-        }
-    }
+    var kind: UploadKind? { UploadKind(rawValue: reason) }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: kind?.symbol ?? "doc").foregroundStyle(.tint).frame(width: 24).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: title)
+                Text(verbatim: kind?.title ?? reason)
                 // The seq matches what a processor shows in `hka status`.
                 Text(verbatim: "#\(seq) · \(BackupDetailsView.format(date))").font(.caption).foregroundStyle(.secondary)
-                if waiting {
-                    Text("Waiting to upload").font(.caption).foregroundStyle(.orange)
-                }
-                if let problem {
-                    Text(verbatim: problem).font(.caption).foregroundStyle(.secondary)
-                }
             }
             Spacer()
             Text(verbatim: BackupDetailsView.size(size)).font(.callout).foregroundStyle(.secondary).monospacedDigit()

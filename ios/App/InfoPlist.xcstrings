@@ -12,7 +12,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sao lưu sức khoẻ"
+            "value": "Sao lưu sức khỏe"
           }
         }
       }
@@ -28,7 +28,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Camera được dùng để quét mã QR tham gia và thẻ máy giải mã."
+            "value": "Camera dùng để quét mã QR mời và thẻ máy giải mã."
           }
         }
       }

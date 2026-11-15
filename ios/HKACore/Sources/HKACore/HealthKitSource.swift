@@ -139,6 +139,11 @@ public final class HealthKitSource: HealthSource {
         HealthCatalog.recordRequested(types)
     }
 
+    /// True when iOS will show its permission screen: some type has never been asked about.
+    public func canAskForAccess() async -> Bool {
+        (try? await store.statusForAuthorizationRequest(toShare: [], read: HealthCatalog.readTypes)) == .shouldRequest
+    }
+
     /// True when the catalog has types the member has not been asked about (for example after an update).
     public func needsAuthorization() async -> Bool {
         let status = try? await store.statusForAuthorizationRequest(toShare: [], read: HealthCatalog.readTypes)

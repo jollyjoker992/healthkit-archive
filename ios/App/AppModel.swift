@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
     /// already in the phone's language).
     @Published var failure: Failure?
     @Published var started = false
+    /// iOS will not show its Health permission screen again: explain where to change access instead.
+    @Published var showHealthHint = false
 
     func load() async {
         do {
@@ -117,8 +119,17 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func requestHealthAccess() {
-        run("Couldn’t request Health access") { try await DeviceHost.shared.source(readable: { true }).requestAuthorization() }
+    /// iOS shows its permission screen only for types never asked about; for the rest it returns at once
+    /// and shows nothing. Ask when it will show, otherwise point to the Health app.
+    func reviewHealthAccess() {
+        Task {
+            let source = await DeviceHost.shared.source(readable: { true })
+            if await source.canAskForAccess() {
+                run("Couldn’t request Health access") { try await source.requestAuthorization() }
+            } else {
+                showHealthHint = true
+            }
+        }
     }
 
     func startOver() {
