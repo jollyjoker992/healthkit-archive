@@ -51,27 +51,32 @@ ask. Filter every query with `subject: "Patient/<patient>"`.
    day. If a person also keeps a [garmin-archive](https://github.com/jollyjoker992/garmin-archive) and
    Garmin Connect writes into their Health, the same days exist in both archives: compare them, never
    add them.
-4. **Look up a custom code before interpreting it:** `python3 tools/medplum_agent.py codes <text>`
+4. **One workout can be recorded by several apps.** A watch's app and a running app (e.g. Garmin Connect
+   and Strava) often both write the same session into Health, each with its own UUID. `workouts` merges
+   workouts of the same type that overlap for most of their time and lists the others under
+   `also_recorded_by`; count and compare sessions from it, not from a raw GraphQL list (`workouts --all`
+   shows every record). If you query workouts in GraphQL, merge overlapping ones yourself.
+5. **Look up a custom code before interpreting it:** `python3 tools/medplum_agent.py codes <text>`
    prints definition, unit and value type of `hka-metrics` codes.
-5. **Missing is not zero.** No Observation, or an absent component, means no measurement (watch off,
+6. **Missing is not zero.** No Observation, or an absent component, means no measurement (watch off,
    not synced, source not shared). Report gaps; never fill them with 0. A 0 that is present is real.
    Sleep with no asleep stage has `dataAbsentReason` instead of a value.
-6. **HRV is SDNN** (Apple's measure, LOINC 80404-7), not RMSSD. Do not compare it with Garmin or
+7. **HRV is SDNN** (Apple's measure, LOINC 80404-7), not RMSSD. Do not compare it with Garmin or
    Oura HRV numbers, and compare a person with their own history, not population norms.
-7. **Sleep belongs to the morning it ends.** A night is one Observation on the day it ends (the sleep
+8. **Sleep belongs to the morning it ends.** A night is one Observation on the day it ends (the sleep
    day runs 18:00 to 18:00); an evening nap after 18:00 counts toward the next day. The value is
    minutes asleep; `sleep-in-bed` is time in bed (not asleep). Sources without stage tracking report
    only `sleep-unspecified`.
-8. **Energy is split.** `active-energy-daily` and `basal-energy-daily` are separate; total burned is
+9. **Energy is split.** `active-energy-daily` and `basal-energy-daily` are separate; total burned is
    their sum. A workout's LOINC 55424-6 is its active energy only.
-9. **Preliminary days can still change** (`status: preliminary`): late syncs reopen a day, and a day
+10. **Preliminary days can still change** (`status: preliminary`): late syncs reopen a day, and a day
    turns `final` after 7 quiet days. After a phone re-sends its history, every day is preliminary for
    a week; that says nothing about data quality. The latest one or two days are often incomplete.
-10. **Ask for enough rows.** A list stops at `_count` (at most 1000): ten years of steps is over 3,600
+11. **Ask for enough rows.** A list stops at `_count` (at most 1000): ten years of steps is over 3,600
     days. Page with `_offset: 1000`, `2000`, ... until a page comes back shorter than `_count`.
-11. **Not medical advice.** Describe patterns and how they compare with the person's own history.
+12. **Not medical advice.** Describe patterns and how they compare with the person's own history.
     For symptoms or worrying values, suggest a clinician.
-12. **Personal data stays local.** Do not send raw data to external services. Routes are home and
+13. **Personal data stays local.** Do not send raw data to external services. Routes are home and
     running locations: use `--no-gps` unless the question is about the route, and never paste
     coordinates into an answer unless asked.
 
@@ -183,7 +188,10 @@ python3 tools/medplum_agent.py workout-hr <workout> > hr.csv          # heart ra
 python3 tools/medplum_agent.py route <workout> --no-gps --every 10    # GPS points: distance, speed, pace, altitude
 ```
 
-- `<workout>` is the HealthKit UUID that `workouts` prints. `route: true` means a GPS route exists.
+- `<workout>` is the HealthKit UUID that `workouts` prints (one per session; other apps' records of it are in
+  `also_recorded_by`). `route: true` means a GPS route exists.
+- "Longest" means farthest unless the question says time; when the top sessions are within about 1% of
+  each other, say it is a near tie and name them.
 - `minutes` is HealthKit's workout duration as the recording app set it, usually without pauses;
   `start` to `end` is the elapsed time. Say which one a pace is based on.
 - There is no second-by-second data (pace, cadence, power per second) in HealthKit. If the person also

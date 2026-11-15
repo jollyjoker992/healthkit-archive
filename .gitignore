@@ -26,3 +26,6 @@ worker/wrangler.deploy.jsonc
 
 # Agent tool caches (token, downloaded routes)
 .cache/
+
+# PDF reports (tools/hka_report.py): personal health data
+/reports/

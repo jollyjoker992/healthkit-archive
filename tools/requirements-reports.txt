@@ -1,0 +1,3 @@
+# Optional: PDF reports (tools/hka_report.py). The rest of the project needs only the standard library.
+matplotlib>=3.8
+reportlab>=4.0

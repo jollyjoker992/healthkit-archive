@@ -10,12 +10,15 @@ whose access policy allows reading and searching only.
     python3 tools/medplum_agent.py graphql @file.graphql [--vars '{"from": "..."}']
     python3 tools/medplum_agent.py codes [TEXT]       hka-metrics codes (unit, value type, definition), optionally filtered
     python3 tools/medplum_agent.py people             family members: Patient id, user id, name, sex, birth date, UTC offset
-    python3 tools/medplum_agent.py workouts [--person P] [--from ISO] [--to ISO]   workouts, with or without a route
+    python3 tools/medplum_agent.py workouts [--person P] [--from ISO] [--to ISO] [--all]
+                                                      workouts, newest first; one entry per session (--all: every record)
     python3 tools/medplum_agent.py route WORKOUT [--format csv|json] [--every N] [--no-gps] [--out FILE]
     python3 tools/medplum_agent.py workout-hr WORKOUT [--format csv|json]          heart rate per minute during it
 
 PERSON is a Patient id, a user id (u_...) or a name from `people`; it can be left out when there is
-only one person. WORKOUT is the workout's HealthKit UUID as `workouts` prints it.
+only one person. WORKOUT is the workout's HealthKit UUID as `workouts` prints it. Several apps can record
+the same session (e.g. a watch's app and a running app); `workouts` merges them and names the others in
+`also_recorded_by`.
 
 `route` downloads the workout's GPX (a Binary in Medplum, read-only client), caches it in
 .cache/routes/ (mode 600) and prints one row per GPS point with distance and speed computed from
@@ -180,19 +183,44 @@ def resolve_person(person: str | None) -> str:
 # -------------------------------------------------------------------------- workouts
 
 def component_dict(obs: dict) -> dict:
-    return {x["code"]["coding"][0]["code"]: (x.get("valueQuantity") or {}).get("value")
+    """Components by their own code (LOINC or hka-metrics), not the HealthKit type a component may also carry."""
+    own = lambda cc: next((c["code"] for c in cc["coding"] if not c.get("system", "").endswith("/healthkit-type")),
+                          cc["coding"][0]["code"])
+    return {own(x["code"]): (x.get("valueQuantity") or {}).get("value")
             if x.get("valueQuantity") else (x.get("valueCodeableConcept") or {}).get("text")
             for x in obs.get("component") or []}
 
 
-def list_workouts(person: str | None, start: str | None, end: str | None) -> list[dict]:
+def merge_duplicates(workouts: list[dict]) -> list[dict]:
+    """One entry per real workout. Several apps can write the same session into Health (a watch's app and a
+    running app), each with its own UUID: workouts of the same type whose times overlap for most of the shorter
+    one are merged. The kept record prefers a route, then heart rate; the others are listed in
+    `also_recorded_by` with their source and UUID."""
+    def overlap(a, b):
+        sa, ea, sb, eb = (parse_time(x) for x in (a["start"], a["end"], b["start"], b["end"]))
+        shared = (min(ea, eb) - max(sa, sb)).total_seconds()
+        shorter = min((ea - sa).total_seconds(), (eb - sb).total_seconds()) or 1
+        return shared / shorter
+    groups: list[list[dict]] = []
+    for w in sorted(workouts, key=lambda x: x["start"]):
+        g = next((g for g in groups if g[0]["type"] == w["type"] and overlap(g[0], w) >= 0.8), None)
+        (g.append(w) if g else groups.append([w]))
+    out = []
+    for g in groups:
+        keep = max(g, key=lambda w: (w["route"], w["avg_hr"] is not None, w["distance_m"] or 0))
+        keep = {**keep, "also_recorded_by": [{"source": w["source"], "workout": w["workout"]} for w in g if w is not keep]}
+        out.append(keep)
+    return sorted(out, key=lambda w: w["start"], reverse=True)
+
+
+def list_workouts(person: str | None, start: str | None, end: str | None, merge: bool = True) -> list[dict]:
     flt = " and ".join(f"date {op} {v}" for op, v in (("ge", start), ("lt", end)) if v)
     # Medplum cannot parse an empty _filter, so the argument is left out when there is no range.
     query = ('query($s: String' + (', $f: String' if flt else '') + ') { ObservationList(subject: $s, '
              'code: "http://loinc.org|55411-3", ' + ('_filter: $f, ' if flt else '') + '_sort: "-date", _count: 1000) '
              '{ identifier { value } effectivePeriod { start end } '
              'valueQuantity { value } device { display } '
-             'component { code { coding { code } } valueQuantity { value } valueCodeableConcept { text } } '
+             'component { code { coding { system code } } valueQuantity { value } valueCodeableConcept { text } } '
              'derivedFrom { reference } } }')
     rows = data_of(graphql(query, {"s": f"Patient/{resolve_person(person)}", "f": flt or None}))["ObservationList"]
     out = []
@@ -202,8 +230,8 @@ def list_workouts(person: str | None, start: str | None, end: str | None) -> lis
                     "end": o["effectivePeriod"]["end"], "type": c.get("73985-4"),
                     "minutes": (o.get("valueQuantity") or {}).get("value"), "distance_m": c.get("workout-distance"),
                     "avg_hr": c.get("55425-3"), "max_hr": c.get("55426-1"), "active_kcal": c.get("55424-6"),
-                    "route": bool(o.get("derivedFrom"))})
-    return out
+                    "route": bool(o.get("derivedFrom")), "source": (o.get("device") or {}).get("display")})
+    return merge_duplicates(out) if merge else out
 
 
 def workout(uuid: str) -> dict:
@@ -362,7 +390,8 @@ def main(argv: list[str]) -> int:
     elif cmd == "people":
         print(json.dumps(people(), indent=1, ensure_ascii=False))
     elif cmd == "workouts":
-        print(json.dumps(list_workouts(opt("--person"), opt("--from"), opt("--to")), indent=1, ensure_ascii=False))
+        print(json.dumps(list_workouts(opt("--person"), opt("--from"), opt("--to"), merge="--all" not in rest),
+                         indent=1, ensure_ascii=False))
     elif cmd in ("route", "workout-hr"):
         if not positional:
             fail(f"{cmd} needs a workout UUID (see 'workouts')")

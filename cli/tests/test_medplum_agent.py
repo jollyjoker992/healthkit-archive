@@ -84,6 +84,20 @@ class Agent(unittest.TestCase):
         self.assertEqual([r["time"][11:16] for r in rows], ["23:58", "23:59", "00:00", "00:01", "00:02"])
         self.assertEqual([r["heart_rate"] for r in rows], [None, 130.0, 140.0, 150.0, None])
 
+    def test_one_session_recorded_by_two_apps_is_merged(self):
+        def w(uuid, start, end, kind="running", route=False, hr=None, distance=5000, source="App"):
+            return {"workout": uuid, "start": start, "end": end, "type": kind, "route": route, "avg_hr": hr,
+                    "distance_m": distance, "source": source}
+        rows = [w("a", "2026-06-13T17:34:14+07:00", "2026-06-13T18:18:04+07:00", source="Watch app"),
+                w("b", "2026-06-13T17:34:14+07:00", "2026-06-13T18:18:04+07:00", route=True, source="Run app"),
+                w("c", "2026-06-13T17:34:00+07:00", "2026-06-13T18:00:00+07:00", kind="cycling"),     # other type
+                w("d", "2026-06-13T18:10:00+07:00", "2026-06-13T18:40:00+07:00")]                    # short overlap
+        out = M.merge_duplicates(rows)
+        self.assertEqual(sorted(x["workout"] for x in out), ["b", "c", "d"])                # the one with a route is kept
+        kept = next(x for x in out if x["workout"] == "b")
+        self.assertEqual(kept["also_recorded_by"], [{"source": "Watch app", "workout": "a"}])
+        self.assertEqual(next(x for x in out if x["workout"] == "d")["also_recorded_by"], [])
+
     def test_person_must_be_named_when_there_are_several(self):
         M.people = lambda: [{"patient": "p1", "user": "u_1", "name": "Alex"}, {"patient": "p2", "user": "u_2", "name": "Mẹ"}]
         self.assertEqual(M.resolve_person("mẹ"), "p2")

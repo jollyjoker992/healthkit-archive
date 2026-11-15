@@ -24,6 +24,8 @@ instructions):
 - [`healthkit-health-analysis`](../.agents/skills/healthkit-health-analysis/SKILL.md): analysing a
   family member's data (where each metric is, rules that prevent wrong answers, tested GraphQL recipes,
   workout heart rate and routes).
+- [`healthkit-reports`](../.agents/skills/healthkit-reports/SKILL.md): PDF reports for a day, a workout,
+  or a week/month (facts computed by `tools/hka_report.py`, evaluation written by the agent).
 - [`healthkit-archive`](../.agents/skills/healthkit-archive/SKILL.md): operating the backup (processor
   status and alarms, pinning a new phone, FHIR map and load, admin tasks).
 
@@ -107,6 +109,20 @@ python3 tools/medplum_agent.py workouts --person <name> --from 2026-09-01T00:00:
 python3 tools/medplum_agent.py workout-hr <workout uuid>
 python3 tools/medplum_agent.py route <workout uuid> --no-gps
 ```
+
+PDF reports (optional dependencies: `python3 -m pip install -r tools/requirements-reports.txt`):
+
+```sh
+python3 tools/hka_report.py day --date 2026-11-13 --person <name> --facts facts.json        # step 1: facts
+python3 tools/hka_report.py day --date 2026-11-13 --person <name> --narrative narrative.json  # step 3: PDF
+python3 tools/hka_report.py workout <workout uuid> --facts facts.json
+python3 tools/hka_report.py period --month 2026-10 --person <name> --facts facts.json          # or --week, --from/--to
+```
+
+The script computes the facts and draws the charts; the evaluation and recommendations in
+`narrative.json` are written by a person or an agent from those facts (the `healthkit-reports` skill
+describes how). English and Vietnamese are built in; other languages through `"labels"`
+(`python3 tools/hka_report.py labels`). PDFs go to `reports/` (ignored by git) or `$HKA_REPORT_DIR`.
 
 Date filters must carry the person's UTC offset (the examples use `+07:00`; `people` prints each person's); ranges use
 `_filter: "date ge <from> and date lt <to>"`.

@@ -29,6 +29,10 @@ processor's day folders, `fhir/` or `inbox/` to answer a question. If Medplum is
 suggest `cd medplum && docker compose up -d`; reading the day folders instead needs the owner's explicit
 OK. The archive holds several people: always know whose data a question is about.
 
+PDF reports (a day, a workout, a week or month) follow
+[`.agents/skills/healthkit-reports/SKILL.md`](.agents/skills/healthkit-reports/SKILL.md)
+(`tools/hka_report.py`: facts, then your narrative, then the PDF in `reports/`, which git ignores).
+
 Operating the backup (processor status, alarms, pinning a new phone, FHIR load, `hka-admin`) follows
 [`.agents/skills/healthkit-archive/SKILL.md`](.agents/skills/healthkit-archive/SKILL.md). MCP and other
 agents: [`docs/agents.md`](docs/agents.md).
@@ -55,7 +59,7 @@ Date searches in Medplum must carry the member's UTC offset.
 | App | `ios/App/` | `xcodebuild … -sdk iphonesimulator CODE_SIGN_IDENTITY=- …` |
 | FHIR | `cli/hka/fhir.py`, `cli/hka/terminology/`, `tools/fhir_terminology.py`, `tools/fhir_examples.py` | `cli/tests/test_fhir*.py` |
 | Medplum | `medplum/docker-compose.yml`, `medplum/setup.py` (API on 8203) | `test_e2e_local.py` with the test project |
-| Agents | `.agents/skills/`, `tools/medplum_agent.py` (read-only), `.mcp.json`, `docs/agents.md` | `cli/tests/test_medplum_agent.py` |
+| Agents | `.agents/skills/`, `tools/medplum_agent.py` (read-only), `tools/hka_report.py` (PDF), `.mcp.json`, `docs/agents.md` | `cli/tests/test_medplum_agent.py`, `test_hka_report.py` |
 | CI | `.github/workflows/ci.yml` (required, Ubuntu), `macos.yml` (manual, self-hosted) | see `docs/ci.md` |
 
 Node for the Worker and the FHIR validator: arm64 Node 24 (`worker/.nvmrc`). The Simulator test
