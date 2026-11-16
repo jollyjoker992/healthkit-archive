@@ -71,8 +71,24 @@ DAILY_NAMES = {
 }
 # Single readings, averaged per local day.
 READINGS = {"resting_hr": f"{LOINC}|40443-4", "hrv_ms": f"{LOINC}|80404-7", "spo2_pct": f"{LOINC}|2708-6",
-            "resp_rate": f"{LOINC}|9279-1", "weight_kg": f"{LOINC}|29463-7"}
+            "resp_rate": f"{LOINC}|9279-1", "weight_kg": f"{LOINC}|29463-7", "vo2_max": f"{HKA}|vo2-max"}
 STAGES = (("deep", "93831-6"), ("core", "93830-8"), ("rem", "93829-0"), ("awake", "93828-2"))
+HKT = f"{ma.BASE_URL}/CodeSystem/healthkit-type"
+# iPhone Mobility readings (the phone measures them while it is carried on walks), averaged per local day.
+MOBILITY = {"walking_speed_kmh": f"{HKT}|HKQuantityTypeIdentifierWalkingSpeed",
+            "step_length_cm": f"{HKT}|HKQuantityTypeIdentifierWalkingStepLength",
+            "double_support_pct": f"{HKT}|HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
+            "asymmetry_pct": f"{HKT}|HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
+            "steadiness_pct": f"{HKT}|HKQuantityTypeIdentifierAppleWalkingSteadiness"}
+HEADPHONE = f"{HKT}|HKQuantityTypeIdentifierHeadphoneAudioExposure"
+AUDIOGRAM = f"{LOINC}|89015-2"
+# Pure-tone average frequencies; ear and frequency come from each component's LOINC display
+# ("Hearing threshold Ear - left --1000 Hz", docs/fhir-mapping.md), so no code table is kept here.
+PTA_HZ = (500, 1000, 2000, 4000)
+EVENING = 18 * 60          # bedtimes are minutes after 18:00, the start of the sleep day
+SHORT_NIGHT_MIN = 7 * 60   # adults: at least 7 hours (AASM / Sleep Research Society)
+WHO_WEEKLY_MIN = 150       # WHO: 150 minutes of moderate activity a week
+MIN_SLEEP_HR_READINGS = 30
 # Values that keep growing during the day: today's are partial and stay out of averages.
 ACCUMULATING = ("steps", "distance_m", "flights", "active_kcal", "basal_kcal", "exercise_min", "cycling_m", "hr_min",
                 "hr_max")
@@ -94,7 +110,7 @@ def mean(values):
 
 
 def rnd(value, digits=1):
-    return None if value is None else round(value, digits)
+    return None if value is None else round(value, digits) + 0  # + 0 turns -0.0 into 0.0
 
 
 def code_of(cc: dict) -> str:
@@ -218,16 +234,52 @@ def sampled_points(obs: dict | None) -> list[tuple[dt.datetime, float]]:
             if v not in ("E", "L", "U")]
 
 
+def clock_minutes(text: str | None, tz: dt.tzinfo, since: int = 0) -> int | None:
+    """Local clock time of an instant as minutes after `since` (minutes after midnight), wrapping at 24 h."""
+    if not text:
+        return None
+    t = parse(text).astimezone(tz)
+    return (t.hour * 60 + t.minute - since) % 1440
+
+
+def clock_text(minutes, since: int = 0) -> str | None:
+    if minutes is None:
+        return None
+    m = int(round(minutes + since)) % 1440
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
+def headphone_dose_pct(seconds: float, level_db: float) -> float:
+    """Share of the weekly safe headphone dose: 80 dB(A) for 40 h is 100 %, and every 3 dB louder halves the time
+    (the WHO-based rule Apple Health uses)."""
+    return 100 * seconds * 2 ** ((level_db - 80) / 3) / (40 * 3600)
+
+
+def energy_mean_db(pairs) -> float | None:
+    """Time-weighted energy average (Leq) of (seconds, dB) pairs: louder stretches weigh more, as the ear hears."""
+    import math
+    pairs = [(s, db) for s, db in pairs if s and db is not None]
+    total = sum(s for s, _ in pairs)
+    return 10 * math.log10(sum(s * 10 ** (db / 10) for s, db in pairs) / total) if total else None
+
+
 def day_records(person: Person, days: list[dt.date]) -> list[dict]:
-    """One record per day: daily totals, last night's sleep and the day's average of each reading."""
+    """One record per day: daily totals, last night's sleep (with timing and heart rate asleep), the day's average
+    of each reading and of the iPhone's walking measures, and headphone listening."""
     if not days:
         return []
-    res = daily_resources(person, days, list(DAILY_NAMES.values()) + ["sleep"])
+    res = daily_resources(person, days, list(DAILY_NAMES.values()) + ["sleep", "hr-minutes"])
+    res.update(daily_resources(person, [days[0] - dt.timedelta(days=1)], ["hr-minutes"]))  # nights start the evening before
     by_day: dict[str, dict] = {}
-    for key, code in READINGS.items():
+    for key, code in {**READINGS, **MOBILITY}.items():
         for o in readings(person, code, days[0], days[-1], "effectiveDateTime effectivePeriod { start } valueQuantity { value }"):
             if value(o) is not None:
                 by_day.setdefault(when(o)[:10], {}).setdefault(key, []).append(value(o))
+    listening: dict[str, list[tuple[float, float]]] = {}
+    for o in readings(person, HEADPHONE, days[0], days[-1], "effectivePeriod { start end } valueQuantity { value }"):
+        p = o.get("effectivePeriod") or {}
+        if value(o) is not None and p.get("start") and p.get("end"):
+            listening.setdefault(p["start"][:10], []).append(((parse(p["end"]) - parse(p["start"])).total_seconds(), value(o)))
     out = []
     for d in days:
         iso = d.isoformat()
@@ -242,16 +294,127 @@ def day_records(person: Person, days: list[dt.date]) -> list[dict]:
                     "sleep_start": ((sleep or {}).get("effectivePeriod") or {}).get("start"),
                     "sleep_end": ((sleep or {}).get("effectivePeriod") or {}).get("end"),
                     "sleep_source": ((sleep or {}).get("device") or {}).get("display")})
+        rec["bedtime_min"] = clock_minutes(rec["sleep_start"], person.tz, EVENING)
+        rec["wake_min"] = clock_minutes(rec["sleep_end"], person.tz)
+        rec["sleep_efficiency_pct"] = (rnd(100 * rec["sleep_min"] / rec["in_bed_min"])
+                                       if rec["sleep_min"] and rec["in_bed_min"] else None)
+        night = []
+        if rec["sleep_start"] and rec["sleep_end"]:
+            a, b = parse(rec["sleep_start"]), parse(rec["sleep_end"])
+            night = [v for day in (d - dt.timedelta(days=1), d)
+                     for t, v in sampled_points(res.get((day.isoformat(), "hr-minutes"))) if a <= t <= b]
+        rec["sleep_hr_avg"] = rnd(mean(night)) if len(night) >= MIN_SLEEP_HR_READINGS else None
+        rec["sleep_hr_readings"] = len(night)
         for key in READINGS:
             vals = by_day.get(iso, {}).get(key)
             rec[key] = rnd(mean(vals)) if vals else None
             if key != "weight_kg":
                 rec[f"{key}_readings"] = len(vals) if vals else 0
+        for key in MOBILITY:
+            vals = by_day.get(iso, {}).get(key)
+            rec[key] = rnd(mean(vals), 2) if vals else None
+        heard = listening.get(iso, [])
+        rec["headphone_min"] = rnd(sum(s for s, _ in heard) / 60) if heard else None
+        rec["headphone_laeq_db"] = rnd(energy_mean_db(heard)) if heard else None
+        rec["headphone_dose_pct"] = rnd(sum(headphone_dose_pct(s, db) for s, db in heard), 2) if heard else None
         rec["total_kcal"] = (rnd(rec["active_kcal"] + rec["basal_kcal"], 0)
                              if rec["active_kcal"] is not None and rec["basal_kcal"] is not None else None)
-        rec["status"] = next((o.get("status") for (day, _), o in res.items() if day == iso), None)
+        rec["status"] = next((o.get("status") for (day, name), o in res.items() if day == iso and name != "hr-minutes"), None)
         out.append(rec)
     return out
+
+
+def threshold_points(obs: dict) -> list[dict]:
+    """The hearing thresholds of one audiogram Observation: ear, frequency, dB HL, comparator and masking."""
+    import re
+    out = []
+    for c in obs.get("component") or []:
+        display = next((x.get("display") or "" for x in c["code"].get("coding") or [] if x.get("system") == LOINC), "")
+        m = re.fullmatch(r"Hearing threshold Ear - (left|right) --(\d+) Hz", display)
+        q = c.get("valueQuantity") or {}
+        if m and q.get("value") is not None:
+            masked = next((e.get("valueBoolean") for e in c.get("extension") or [] if e.get("url", "").endswith("/audiogram-masked")), None)
+            out.append({"ear": m[1], "hz": int(m[2]), "db_hl": q["value"], "comparator": q.get("comparator"), "masked": masked})
+    return sorted(out, key=lambda p: (p["ear"], p["hz"]))
+
+
+def audiograms(person: Person, start: dt.date, end: dt.date) -> list[dict]:
+    """Hearing tests in the range: every threshold, and a pure-tone average per ear (500-4000 Hz, dB HL)."""
+    out = []
+    fields = ("effectiveDateTime effectivePeriod { start } device { display } "
+              "component { code { coding { system code display } } valueQuantity { value comparator } "
+              "extension { url valueBoolean } }")
+    for o in readings(person, AUDIOGRAM, start, end, fields):
+        points = threshold_points(o)
+        ears = {}
+        for ear in ("left", "right"):
+            vals = [p for p in points if p["ear"] == ear and p["hz"] in PTA_HZ]
+            ears[ear] = {"pta_db_hl": rnd(mean(p["db_hl"] for p in vals)) if len(vals) == len(PTA_HZ) else None,
+                         "values_at_test_limit": sum(1 for p in vals if p["comparator"])}
+        out.append({"date": when(o)[:16].replace("T", " "), "source": (o.get("device") or {}).get("display"),
+                    "thresholds": len(points), **ears, "points": points})
+    return out
+
+
+def wellness(records: list[dict], workouts: list[dict]) -> dict:
+    """Sleep timing and regularity, heart rate asleep, activity against the WHO guideline, walking quality and
+    headphone listening for a run of day records."""
+    col = lambda k: [r[k] for r in records if r.get(k) is not None]
+    sd = lambda v: rnd(st.pstdev(v)) if len(v) >= 3 else None
+    nights = [r for r in records if r.get("bedtime_min") is not None and r.get("sleep_min")]
+    mid = lambda r: r["bedtime_min"] + (parse(r["sleep_end"]) - parse(r["sleep_start"])).total_seconds() / 120
+    weekend = [mid(r) for r in nights if dt.date.fromisoformat(r["date"]).weekday() >= 5]   # nights ending Sat, Sun
+    weekday = [mid(r) for r in nights if dt.date.fromisoformat(r["date"]).weekday() < 5]
+    bed, wake = [r["bedtime_min"] for r in nights], [r["wake_min"] for r in nights]
+    sleep_timing = {
+        "nights": len(nights), "bedtime_avg": clock_text(mean(bed), EVENING), "bedtime_spread_min": sd(bed),
+        "wake_avg": clock_text(mean(wake)), "wake_spread_min": sd(wake),
+        "earliest_bedtime": clock_text(min(bed), EVENING) if bed else None,
+        "latest_bedtime": clock_text(max(bed), EVENING) if bed else None,
+        "nights_starting_after_midnight": sum(1 for b in bed if b >= 6 * 60),
+        "nights_under_7h": sum(1 for r in nights if r["sleep_min"] < SHORT_NIGHT_MIN),
+        "efficiency_pct_avg": rnd(mean(col("sleep_efficiency_pct"))),
+        "weekend_minus_weekday_midpoint_min": rnd(mean(weekend) - mean(weekday), 0)
+        if len(weekend) >= 2 and len(weekday) >= 2 else None,
+    }
+    hr = col("sleep_hr_avg")
+    days = len(records)
+    exercise = col("exercise_min")
+    use_ring = days and len(exercise) >= days / 2
+    minutes = sum(exercise) if use_ring else sum(w.get("minutes") or 0 for w in workouts)
+    heard = [(r["headphone_min"] * 60, r["headphone_laeq_db"]) for r in records if r.get("headphone_min")]
+    steadiness = [(r["date"], r["steadiness_pct"]) for r in records if r.get("steadiness_pct") is not None]
+    return {
+        "sleep_timing": sleep_timing,
+        "heart_rate_asleep": {"nights": len(hr), "avg": rnd(mean(hr)), "lowest_night": min(hr) if hr else None,
+                              "highest_night": max(hr) if hr else None},
+        "activity_guideline": {"minutes": rnd(minutes, 0), "source": "exercise_minutes" if use_ring else "workouts",
+                               "per_week": rnd(minutes * 7 / days, 0) if days else None,
+                               "who_target_per_week": WHO_WEEKLY_MIN},
+        "walking": {**{k: {"avg": rnd(mean(col(k)), 2), "days_with_data": len(col(k))}
+                       for k in ("walking_speed_kmh", "step_length_cm", "double_support_pct", "asymmetry_pct")},
+                    "steadiness_pct_last": {"date": steadiness[-1][0], "value": steadiness[-1][1]} if steadiness else None},
+        "vo2_max": {"avg": rnd(mean(col("vo2_max"))), "days_with_data": len(col("vo2_max"))},
+        "headphones": {"days": len(heard), "minutes": rnd(sum(s for s, _ in heard) / 60, 0),
+                       "laeq_db": rnd(energy_mean_db(heard)),
+                       "weekly_dose_pct": rnd(sum(col("headphone_dose_pct")) * 7 / days, 1) if days else None},
+    }
+
+
+def wellness_change(this: dict, prev: dict) -> dict:
+    """This period minus the previous one, for the wellness figures that both have."""
+    diff = lambda a, b, digits=1: rnd(a - b, digits) if a is not None and b is not None else None
+    clock = lambda text, since=0: None if text is None else (int(text[:2]) * 60 + int(text[3:]) - since) % 1440
+    t, p = this["sleep_timing"], prev["sleep_timing"]
+    return {"bedtime_min": diff(clock(t["bedtime_avg"], EVENING), clock(p["bedtime_avg"], EVENING), 0),
+            "wake_min": diff(clock(t["wake_avg"]), clock(p["wake_avg"]), 0),
+            "bedtime_spread_min": diff(t["bedtime_spread_min"], p["bedtime_spread_min"]),
+            "heart_rate_asleep": diff(this["heart_rate_asleep"]["avg"], prev["heart_rate_asleep"]["avg"]),
+            "activity_minutes_per_week": diff(this["activity_guideline"]["per_week"], prev["activity_guideline"]["per_week"], 0),
+            **{k: diff(this["walking"][k]["avg"], prev["walking"][k]["avg"], 2)
+               for k in ("walking_speed_kmh", "step_length_cm", "double_support_pct", "asymmetry_pct")},
+            "headphone_minutes": diff(this["headphones"]["minutes"], prev["headphones"]["minutes"], 0),
+            "headphone_weekly_dose_pct": diff(this["headphones"]["weekly_dose_pct"], prev["headphones"]["weekly_dose_pct"])}
 
 
 def without_partial_today(records: list[dict], today: dt.date) -> list[dict]:
@@ -327,7 +490,20 @@ def basal_note(records: list[dict]) -> list[str]:
 # Day facts
 # --------------------------------------------------------------------------
 
-COMPARED = ("sleep_min", "resting_hr", "hrv_ms", "steps", "distance_m", "active_kcal", "exercise_min", "flights")
+COMPARED = ("sleep_min", "bedtime_min", "wake_min", "sleep_hr_avg", "resting_hr", "hrv_ms", "steps", "distance_m",
+            "active_kcal", "exercise_min", "flights", "walking_speed_kmh", "headphone_min")
+
+WELLNESS_NOTES = [
+    "Bedtime and wake time are the first and last record of the night's sleep source. In comparisons bedtime is "
+    "minutes after 18:00 and wake time minutes after midnight; spread is the standard deviation across nights.",
+    "Heart rate asleep is the one-minute heart-rate series (sources pooled) inside the sleep window; a night needs "
+    f"{MIN_SLEEP_HR_READINGS} readings.",
+    "Walking speed, step length, double support (share of each stride with both feet on the ground) and asymmetry "
+    "are measured by the iPhone while it is carried on steady walks; walking steadiness is Apple's weekly estimate. "
+    "Compare them with the person's own history.",
+    "Headphone dose: 80 dB(A) for 40 hours a week is 100 %, and every 3 dB louder halves the safe time (the WHO-based "
+    "rule Apple Health uses). It covers audio played through headphones, not the noise around the person.",
+]
 
 
 def day_facts(person: Person, day: dt.date) -> tuple[dict, dict]:
@@ -356,10 +532,11 @@ def day_facts(person: Person, day: dt.date) -> tuple[dict, dict]:
         "sleep": {"start": rec["sleep_start"], "end": rec["sleep_end"], "asleep_min": rec["sleep_min"],
                   "in_bed_min": rec["in_bed_min"], "stages_min": stages, "unspecified_min": rec["unspecified_min"],
                   "stages_pct": {k: rnd(100 * v / staged) if v and staged else None for k, v in stages.items()},
-                  "source": rec["sleep_source"]},
+                  "bedtime": clock_text(rec["bedtime_min"], EVENING), "wake": clock_text(rec["wake_min"]),
+                  "efficiency_pct": rec["sleep_efficiency_pct"], "source": rec["sleep_source"]},
         "heart_rate": {"resting": rec["resting_hr"], "day_min": rec["hr_min"], "day_max": rec["hr_max"],
                        "minutes_with_reading": len(hr),
-                       "asleep_avg": rnd(mean(v for t, v in hr if in_sleep(t))),
+                       "asleep_avg": rec["sleep_hr_avg"], "asleep_readings": rec["sleep_hr_readings"],
                        "awake_avg": rnd(mean(v for t, v in hr if not in_sleep(t) and not in_workout(t))),
                        "hourly_avg": {f"{h:02d}": round(mean(v)) for h, v in sorted(hourly.items())}},
         "hrv_sdnn_ms": {"avg": rec["hrv_ms"], "readings": rec["hrv_ms_readings"]},
@@ -367,7 +544,11 @@ def day_facts(person: Person, day: dt.date) -> tuple[dict, dict]:
         "respiratory_rate": {"avg": rec["resp_rate"], "readings": rec["resp_rate_readings"]},
         "activity": {k: rec[k] for k in ("steps", "distance_m", "flights", "active_kcal", "basal_kcal", "total_kcal",
                                          "exercise_min", "cycling_m")},
-        "weight_kg": rec["weight_kg"],
+        "weight_kg": rec["weight_kg"], "vo2_max": rec["vo2_max"],
+        "walking": {k: rec[k] for k in MOBILITY},
+        "headphones": {"minutes": rec["headphone_min"], "laeq_db": rec["headphone_laeq_db"],
+                       "share_of_weekly_dose_pct": rec["headphone_dose_pct"]},
+        "audiograms": audiograms(person, day, day),
         "workouts": [{k: w[k] for k in ("workout", "start", "end", "type", "minutes", "distance_m", "active_kcal",
                                         "heart_rate", "source", "also_recorded_by")} for w in workouts],
         f"compared_with_previous_{BASELINE_DAYS}_days": {k: compare(rec[k], [b[k] for b in base]) for k in COMPARED},
@@ -377,6 +558,7 @@ def day_facts(person: Person, day: dt.date) -> tuple[dict, dict]:
             "of those days had a lower value; days_with_data = how many had a value at all.",
             SOURCE_NOTE,
             "HRV is SDNN (Apple's measure), spot readings during the day; compare it only with this person's own values.",
+            *WELLNESS_NOTES,
         ] + (["This is today: last night's sleep and the readings so far count; steps, distance, energy and other "
               "daily totals are partial and left out of the comparison."] if partial else [])
           + (["This day is still preliminary: late syncs can change it."] if rec["status"] == "preliminary"
@@ -385,7 +567,7 @@ def day_facts(person: Person, day: dt.date) -> tuple[dict, dict]:
     }
     series = {"day": day, "tz": person.tz, "hr": hr, "sleep": sleep_window, "workouts": workouts, "stages": stages,
               "unspecified": rec["unspecified_min"], "in_bed": rec["in_bed_min"], "resting": rec["resting_hr"],
-              "history": base + [rec]}
+              "history": base + [rec], "audiograms": facts["audiograms"]}
     return facts, series
 
 
@@ -451,6 +633,8 @@ def period_facts(person: Person, start: dt.date, end: dt.date, period: dict) -> 
         w["heart_rate"] = hr_summary(hr_during(hr, parse(w["start"]), parse(w["end"])))
     this = aggregate(without_partial_today(records, today), workouts)
     prev = aggregate(prev_records, prev_workouts)
+    well_this = wellness(without_partial_today(records, today), workouts)
+    well_prev = wellness(prev_records, prev_workouts)
     delta = {k: rnd(this[k]["avg"] - prev[k]["avg"], 0 if k in ("steps", "distance_m", "active_kcal") else 1)
              if this[k]["avg"] is not None and prev[k]["avg"] is not None else None
              for k in ("sleep_min", "resting_hr", "hrv_ms", "steps", "distance_m", "active_kcal", "exercise_min")}
@@ -463,6 +647,10 @@ def period_facts(person: Person, start: dt.date, end: dt.date, period: dict) -> 
                 "previous_days_with_data": sum(1 for r in prev_records if has(r))}
     coverage["by_metric"] = {k: {"this": this[k]["days_with_data"], "previous": prev[k]["days_with_data"]}
                              for k in ("sleep_min", "resting_hr", "hrv_ms", "steps", "active_kcal", "exercise_min")}
+    coverage["by_metric"]["sleep_hr_avg"] = {"this": well_this["heart_rate_asleep"]["nights"],
+                                             "previous": well_prev["heart_rate_asleep"]["nights"]}
+    coverage["by_metric"]["walking_speed_kmh"] = {k: w["walking"]["walking_speed_kmh"]["days_with_data"]
+                                                  for k, w in (("this", well_this), ("previous", well_prev))}
     thin = [k for k, c in coverage["by_metric"].items()
             if 0 < max(c["this"], c["previous"]) and min(c["this"], c["previous"]) < length / 2]
     pick = lambda key, best: (best((r for r in records if r.get(key) is not None), key=lambda r: r[key], default={})
@@ -472,6 +660,8 @@ def period_facts(person: Person, start: dt.date, end: dt.date, period: dict) -> 
         "person": person_facts(person), "in_progress": end >= today, "coverage": coverage,
         "summary": this, "previous_period": {"from": prev_start.isoformat(), "to": prev_end.isoformat(), **prev},
         "change_vs_previous_avg": delta,
+        "wellness": {"this": well_this, "previous": well_prev, "change": wellness_change(well_this, well_prev)},
+        "audiograms": audiograms(person, start, end),
         "best_and_worst": {"longest_sleep": pick("sleep_min", max), "shortest_sleep": pick("sleep_min", min),
                            "most_steps": pick("steps", max), "fewest_steps": pick("steps", min),
                            "highest_resting_hr": pick("resting_hr", max), "lowest_resting_hr": pick("resting_hr", min)},
@@ -484,6 +674,10 @@ def period_facts(person: Person, start: dt.date, end: dt.date, period: dict) -> 
             SOURCE_NOTE,
             "HRV is SDNN (Apple's measure); compare it only with this person's own values.",
             "Active and basal energy are separate; total = active + basal.",
+            *WELLNESS_NOTES,
+            "Activity guideline: Apple's exercise minutes when they cover at least half the days, otherwise the "
+            "minutes of recorded workouts; per_week scales the period to 7 days. WHO counts a vigorous minute as two "
+            "moderate ones, so running minutes understate the guideline share.",
         ] + ([f"The period is still in progress: {len(days)} of {length} days so far. Today ({today}) counts for last "
               "night's sleep and today's readings; its steps, distance and energy are partial and left out of the "
               "averages."] if coverage["today_partial"] else [])
@@ -498,7 +692,7 @@ def period_facts(person: Person, start: dt.date, end: dt.date, period: dict) -> 
               "a reading only every few minutes."] if workouts else [])
           + workout_notes(workouts) + basal_note(records),
     }
-    return facts, {"days": records, "workouts": workouts, "from": start, "to": end}
+    return facts, {"days": records, "workouts": workouts, "from": start, "to": end, "audiograms": facts["audiograms"]}
 
 
 # --------------------------------------------------------------------------
@@ -678,6 +872,31 @@ LABELS_EN = {
     "c_training_caption": "Workouts",
     "tb_daily": "Day by day", "h_sleep": "sleep", "h_rhr": "RHR", "h_hrv": "HRV", "h_steps": "steps",
     "h_active": "active kcal", "today_partial": "today, partial",
+    # wellness details (period and day)
+    "c_timing": "Sleep window per night (bedtime to wake)", "c_timing_caption": "Sleep timing; dashed: midnight and 06:00",
+    "b_bedtime_min": "bedtime", "b_wake_min": "wake time", "b_sleep_hr_avg": "heart rate asleep",
+    "b_walking_speed_kmh": "walking speed", "b_headphone_min": "headphone listening",
+    "n_efficiency": "asleep / in bed", "n_walking": "walking: speed / step length / double support / asymmetry",
+    "n_steadiness": "walking steadiness", "n_headphones": "headphones: time / average level / share of weekly limit",
+    "n_audiogram": "hearing test (average 500-4000 Hz)",
+    "audiogram_pta": "left {left} / right {right} dB HL ({date})",
+    "tb_wellness": "Wellness details", "h_this_period": "this period", "h_previous": "previous", "h_change": "change",
+    "wl_bedtime": "bedtime (± spread)", "wl_wake": "wake time (± spread)",
+    "wl_late_short": "nights after midnight / under 7 h / all", "wl_efficiency": "asleep / in bed",
+    "wl_jetlag": "weekend sleep midpoint vs weekdays", "wl_hr_asleep": "heart rate asleep (lowest - highest night)",
+    "wl_activity": "activity minutes per week (WHO {target}, from {source})",
+    "wl_src_exercise_minutes": "exercise minutes", "wl_src_workouts": "workouts",
+    "wl_walking_speed_kmh": "walking speed", "wl_step_length_cm": "step length",
+    "wl_double_support_pct": "double support time", "wl_asymmetry_pct": "walking asymmetry",
+    "wl_steadiness": "walking steadiness (latest)", "wl_vo2": "VO2 max (mL/kg/min)",
+    "wl_headphones": "headphones: time / level / weekly limit",
+    "c_audiogram": "Audiogram, {date}", "a_freq": "frequency (Hz)", "a_level": "hearing level (dB HL)",
+    "a_right": "right ear", "a_left": "left ear", "a_normal": "normal range (under {db} dB HL)",
+    "a_limit": "at the test's limit: real threshold may be better",
+    "c_audiogram_caption": "Hearing test: the quietest sound heard at each frequency. Higher on the chart is better "
+                           "hearing. O right ear, X left ear (triangle / square when masked); an arrow means the "
+                           "value is the test's quietest level, so the ear may hear even quieter sounds.",
+    "tb_audiogram": "Hearing thresholds, dB HL ({date})", "h_freq": "frequency",
     # workout report
     "workout_title": "Workout report: {type}, {when}",
     "workout_subtitle": "{name} - {start} to {end} ({offset}), source: {source}",
@@ -755,6 +974,31 @@ LABELS_VI = {
     "c_training_caption": "Tập luyện",
     "tb_daily": "Từng ngày", "h_sleep": "giấc ngủ", "h_rhr": "NT nghỉ", "h_hrv": "HRV", "h_steps": "số bước",
     "h_active": "kcal vận động", "today_partial": "hôm nay, chưa đủ ngày",
+    "c_timing": "Khung giờ ngủ mỗi đêm (từ lúc ngủ đến lúc dậy)", "c_timing_caption": "Giờ ngủ; nét đứt: nửa đêm và 06:00",
+    "b_bedtime_min": "giờ đi ngủ", "b_wake_min": "giờ thức dậy", "b_sleep_hr_avg": "nhịp tim khi ngủ",
+    "b_walking_speed_kmh": "tốc độ đi bộ", "b_headphone_min": "thời gian nghe tai nghe",
+    "n_efficiency": "ngủ / trên giường", "n_walking": "đi bộ: tốc độ / độ dài bước / thời gian hai chân chạm đất / độ lệch",
+    "n_steadiness": "độ vững khi đi bộ", "n_headphones": "tai nghe: thời gian / mức âm trung bình / phần giới hạn tuần",
+    "n_audiogram": "kiểm tra thính lực (trung bình 500-4000 Hz)",
+    "audiogram_pta": "tai trái {left} / tai phải {right} dB HL ({date})",
+    "tb_wellness": "Chi tiết sức khỏe", "h_this_period": "kỳ này", "h_previous": "kỳ trước", "h_change": "thay đổi",
+    "wl_bedtime": "giờ đi ngủ (± độ lệch)", "wl_wake": "giờ thức dậy (± độ lệch)",
+    "wl_late_short": "số đêm ngủ sau nửa đêm / dưới 7 giờ / tổng", "wl_efficiency": "ngủ / trên giường",
+    "wl_jetlag": "giữa giấc ngủ cuối tuần so với ngày thường",
+    "wl_hr_asleep": "nhịp tim khi ngủ (đêm thấp nhất - cao nhất)",
+    "wl_activity": "phút vận động mỗi tuần (WHO {target}, từ {source})",
+    "wl_src_exercise_minutes": "phút tập", "wl_src_workouts": "buổi tập",
+    "wl_walking_speed_kmh": "tốc độ đi bộ", "wl_step_length_cm": "độ dài bước",
+    "wl_double_support_pct": "thời gian hai chân chạm đất", "wl_asymmetry_pct": "độ lệch khi đi bộ",
+    "wl_steadiness": "độ vững khi đi bộ (gần nhất)", "wl_vo2": "VO2 max (mL/kg/phút)",
+    "wl_headphones": "tai nghe: thời gian / mức âm / giới hạn tuần",
+    "c_audiogram": "Thính lực đồ, {date}", "a_freq": "tần số (Hz)", "a_level": "mức nghe (dB HL)",
+    "a_right": "tai phải", "a_left": "tai trái", "a_normal": "vùng bình thường (dưới {db} dB HL)",
+    "a_limit": "ở giới hạn của bài kiểm tra: ngưỡng thật có thể tốt hơn",
+    "c_audiogram_caption": "Kiểm tra thính lực: âm nhỏ nhất nghe được ở mỗi tần số. Càng cao trên biểu đồ là nghe "
+                           "càng tốt. O tai phải, X tai trái (tam giác / vuông khi có che tai); mũi tên nghĩa là giá "
+                           "trị nằm ở mức nhỏ nhất bài kiểm tra phát được, tai có thể nghe được âm còn nhỏ hơn.",
+    "tb_audiogram": "Ngưỡng nghe, dB HL ({date})", "h_freq": "tần số",
     "workout_title": "Báo cáo buổi tập: {type}, {when}",
     "workout_subtitle": "{name} - {start} đến {end} ({offset}), nguồn: {source}",
     "t_duration": "thời lượng (tổng)", "t_distance": "quãng đường", "t_pace": "tốc độ trung bình", "t_hr": "nhịp tim TB / cao nhất",
@@ -1013,7 +1257,66 @@ def day_charts(series: dict, workdir: Path, L: Labels, fonts) -> list[tuple[str,
         _date_axis(ax, L, "chart_date", maxticks=4)
         _title(ax, title)
     charts.append((L("c_context_caption"), _save(fig, workdir / "day_context.png")))
-    return charts
+    return charts + audiogram_charts(series.get("audiograms"), workdir, L, fonts)
+
+
+AUDIO_RIGHT, AUDIO_LEFT = "#c8323c", SERIES[0]   # audiogram convention: right ear red, left ear blue
+NORMAL_HEARING_DB_HL = 20                         # WHO: hearing thresholds under 20 dB HL are normal
+
+
+def audiogram_chart(a: dict, path: Path, L: Labels, fonts) -> Path:
+    """The standard audiogram (ASHA symbols): frequency on a log axis, hearing level downwards; right ear O (red),
+    left ear X (blue), masked right triangle / left square. A threshold at the test's quietest level carries an
+    arrow towards better hearing (up), one at its loudest an arrow down."""
+    plt = _plt(fonts)
+    pts = a["points"]
+    worst = max((p["db_hl"] for p in pts), default=0)
+    fig, ax = plt.subplots(figsize=(4.6, 3.7))
+    ax.axhspan(-10, NORMAL_HEARING_DB_HL, color="#eef5ee", zorder=0, label=L("a_normal", db=NORMAL_HEARING_DB_HL))
+    for ear, color, marker, masked_marker, nudge in (("right", AUDIO_RIGHT, "o", "^", 0.97), ("left", AUDIO_LEFT, "x", "s", 1.03)):
+        ep = [p for p in pts if p["ear"] == ear]
+        if not ep:
+            continue
+        ax.plot([p["hz"] for p in ep], [p["db_hl"] for p in ep], color=color, linewidth=1.2, zorder=2)
+        for p in ep:
+            m = masked_marker if p["masked"] else marker
+            ax.plot(p["hz"], p["db_hl"], linestyle="none", marker=m, markersize=7, color=color, markeredgewidth=1.6,
+                    markerfacecolor=SURFACE if m in ("o", "^", "s") else color, zorder=3)
+            if p["comparator"] in ("<=", ">="):
+                step = -8 if p["comparator"] == "<=" else 8
+                ax.annotate("", xy=(p["hz"] * nudge, p["db_hl"] + step), xytext=(p["hz"] * nudge, p["db_hl"] + step / 4),
+                            arrowprops={"arrowstyle": "-|>", "color": color, "lw": 0.9, "mutation_scale": 7}, zorder=3)
+        ax.plot([], [], linestyle="-", marker=marker, color=color, markerfacecolor=SURFACE if marker == "o" else color,
+                label=L(f"a_{ear}"))
+    if any(p["comparator"] for p in pts):
+        ax.plot([], [], linestyle="none", marker=r"$\uparrow$", color=INK2, markersize=8, label=L("a_limit"))
+    ticks = [250, 500, 1000, 2000, 4000, 8000]
+    ax.set_xscale("log")
+    ax.set_xlim(180, 11000)
+    ax.set_xticks(ticks, ["250", "500", "1k", "2k", "4k", "8k"])
+    ax.minorticks_off()
+    ax.set_ylim(120 if worst > 70 else 80, -20)
+    ax.set_yticks(range(-10, (120 if worst > 70 else 80) + 1, 10))
+    ax.grid(True, color=GRID, linewidth=0.6)
+    ax.set_xlabel(L("a_freq"))
+    ax.set_ylabel(L("a_level"))
+    ax.legend(frameon=False, fontsize=7, loc="lower left")
+    _title(ax, L("c_audiogram", date=a["date"][:10]))
+    return _save(fig, path)
+
+
+def audiogram_charts(audios: list[dict], workdir: Path, L: Labels, fonts) -> list[tuple[str, Path]]:
+    return [(L("c_audiogram_caption"), audiogram_chart(a, workdir / f"audiogram-{i}.png", L, fonts))
+            for i, a in enumerate(audios or []) if a.get("points")]
+
+
+def audiogram_rows(a: dict, L: Labels) -> list[list]:
+    """Thresholds by frequency and ear; '<=' / '>=' where the value is at the test's limit, (M) when masked."""
+    cell = lambda p: "-" if p is None else (f"{'≤' if p['comparator'] == '<=' else '≥'} " if p["comparator"] else "") \
+        + L.n(rnd(p["db_hl"])) + (" (M)" if p["masked"] else "")
+    by = {(p["ear"], p["hz"]): p for p in a["points"]}
+    return [[L("h_freq"), L("a_left"), L("a_right")]] + [
+        [f"{hz} Hz", cell(by.get(("left", hz))), cell(by.get(("right", hz)))] for hz in sorted({p["hz"] for p in a["points"]})]
 
 
 def period_charts(series: dict, workdir: Path, L: Labels, fonts) -> list[tuple[str, Path]]:
@@ -1071,6 +1374,23 @@ def period_charts(series: dict, workdir: Path, L: Labels, fonts) -> list[tuple[s
         fmt(ax)
     charts.append((L("c_move_caption"), _save(fig, workdir / "move.png")))
 
+    nights = [(x, r) for x, r in zip(xs, days) if r.get("bedtime_min") is not None and r.get("wake_min") is not None]
+    if nights:
+        fig, ax = plt.subplots(figsize=(7.2, 2.2))
+        for x, r in nights:     # y: hours after 18:00 the evening before; the wake time is on the next morning
+            bed, wake = r["bedtime_min"] / 60, (r["wake_min"] + 1440 - EVENING) / 60
+            ax.plot([x, x], [bed, wake], color=SERIES[0], linewidth=6, solid_capstyle="butt")
+        for y in (6, 12):       # midnight and 06:00
+            ax.axhline(y, color=MUTED, linewidth=0.6, linestyle=(0, (3, 3)))
+        ticks = range(3, 22, 3)
+        ax.set_yticks(list(ticks), [clock_text(t * 60, EVENING) for t in ticks])
+        ax.set_ylim(min(4, min(r["bedtime_min"] / 60 for _, r in nights) - 0.5),
+                    max(14, max((r["wake_min"] + 1440 - EVENING) / 60 for _, r in nights) + 0.5))
+        ax.invert_yaxis()
+        _title(ax, L("c_timing"))
+        fmt(ax)
+        charts.append((L("c_timing_caption"), _save(fig, workdir / "timing.png")))
+
     per_day = {r["date"]: 0.0 for r in days}
     for w in series["workouts"]:
         key = w["start"][:10]
@@ -1082,7 +1402,7 @@ def period_charts(series: dict, workdir: Path, L: Labels, fonts) -> list[tuple[s
         _title(ax, L("c_workout_min"))
         fmt(ax)
         charts.append((L("c_training_caption"), _save(fig, workdir / "training.png")))
-    return charts
+    return charts + audiogram_charts(series.get("audiograms"), workdir, L, fonts)
 
 
 def workout_charts(series: dict, workdir: Path, L: Labels, fonts) -> list[tuple[str, Path]]:
@@ -1194,6 +1514,8 @@ def build_pdf(out: Path, title: str, subtitle: str, tiles: list[tuple[str, str]]
     h1 = ParagraphStyle("h1", parent=base, fontName="Body-Bold", fontSize=18, leading=23, spaceAfter=2)
     sub = ParagraphStyle("sub", parent=base, fontSize=9, textColor=colors.HexColor(INK2), spaceAfter=10)
     h2 = ParagraphStyle("h2", parent=base, fontName="Body-Bold", fontSize=12, leading=16, spaceBefore=12, spaceAfter=5)
+    # A section heading never ends a page: it moves to the next page with the start of its section.
+    h2k = ParagraphStyle("h2k", parent=h2, keepWithNext=1)
     lead = ParagraphStyle("lead", parent=base, fontName="Body-Bold", fontSize=10.5, leading=14.5, spaceAfter=4)
     cap = ParagraphStyle("cap", parent=base, fontSize=8, textColor=colors.HexColor(INK2), spaceAfter=8)
     small = ParagraphStyle("small", parent=base, fontSize=7.5, leading=10, textColor=colors.HexColor(INK2))
@@ -1201,6 +1523,7 @@ def build_pdf(out: Path, title: str, subtitle: str, tiles: list[tuple[str, str]]
     tile_v = ParagraphStyle("tv", parent=base, fontName="Body-Bold", fontSize=13, leading=16)
     tile_l = ParagraphStyle("tl", parent=base, fontSize=7.5, leading=9.5, textColor=colors.HexColor(INK2))
     p = lambda text, style=base: Paragraph(escape(str(text)), style)
+    FRAME_W, FRAME_H = A4[0] - 36 * mm, A4[1] - 32 * mm   # the page frame inside the margins below
 
     story = [p(title, h1), p(subtitle, sub)]
     cells = [[[p(v, tile_v), p(label, tile_l)] for label, v in tiles[i:i + 4]] for i in range(0, len(tiles), 4)]
@@ -1211,8 +1534,8 @@ def build_pdf(out: Path, title: str, subtitle: str, tiles: list[tuple[str, str]]
                             ("LINEBELOW", (0, 0), (-1, -1), 3, colors.white), ("LINEAFTER", (0, 0), (-1, -1), 3, colors.white),
                             ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 6),
                             ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("LEFTPADDING", (0, 0), (-1, -1), 7)]))
-    story += [tt, Spacer(1, 6), p(L("summary"), h2), p(narrative["headline"], lead), p(narrative["summary"]),
-              p(L("details"), h2)]
+    story += [tt, Spacer(1, 6), p(L("summary"), h2k), p(narrative["headline"], lead), p(narrative["summary"]),
+              p(L("details"), h2k)]
     for caption, path in charts:
         w, h = ImageReader(str(path)).getSize()
         width = 174 * mm if w / h > 1.5 else 90 * mm
@@ -1225,12 +1548,19 @@ def build_pdf(out: Path, title: str, subtitle: str, tiles: list[tuple[str, str]]
         t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor(INK2)),
                                ("LINEBELOW", (0, 1), (-1, -1), 0.3, colors.HexColor(GRID)), ("VALIGN", (0, 0), (-1, -1), "TOP"),
                                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2)]))
-        # Long tables split across pages; the heading moves to the next page only when little room is left.
-        story += [CondPageBreak(40 * mm), p(caption, h2), t]
+        # A table that fits on a page stays with its heading on one page. A longer one (a long range's day by day)
+        # cannot: it starts where at least 60 mm are left, so its heading has its first rows below it, and repeats
+        # its header row on every page it spans. (keepWithNext here would push the whole table to a new page.)
+        if t.wrap(FRAME_W, FRAME_H)[1] + 30 * mm < FRAME_H:
+            story.append(KeepTogether([p(caption, h2), t]))
+        else:
+            story += [CondPageBreak(60 * mm), p(caption, h2), t]
     bullet = lambda items: ListFlowable([ListItem(p(i), leftIndent=10, value="•") for i in items], bulletType="bullet",
                                         start="•", leftIndent=12, bulletFontSize=8, bulletFontName="Body")
-    story += [p(L("evaluation"), h2), bullet(narrative["evaluation"]), p(L("recommendations"), h2),
-              bullet(narrative["recommendations"]), p(L("data_notes"), h2)] + [p(n, small) for n in notes + [L("disclaimer")]]
+    # Lists and notes are short: each heading stays on one page with its whole section.
+    story += [KeepTogether([p(L("evaluation"), h2), bullet(narrative["evaluation"])]),
+              KeepTogether([p(L("recommendations"), h2), bullet(narrative["recommendations"])]),
+              KeepTogether([p(L("data_notes"), h2)] + [p(n, small) for n in notes + [L("disclaimer")]])]
 
     def footer(canvas, doc):
         canvas.saveState()
@@ -1282,14 +1612,20 @@ def render_day(facts: dict, series: dict, narrative: dict, out: Path, font=None,
                  (L("d_steps"), L.whole(act["steps"])), (L("d_distance"), L.km(act["distance_m"])),
                  (L("d_energy"), f"{L.whole(act['active_kcal'])} / {L.whole(act['total_kcal'])} kcal"),
                  (L("d_exercise"), f"{L.whole(act['exercise_min'])} / {L.whole(act['flights'])}")]
-        fmt = {"sleep_min": L.hm, "resting_hr": lambda v: L.n(rnd(v), " " + L("bpm")), "hrv_ms": lambda v: L.n(rnd(v), " ms"),
-               "steps": L.whole, "distance_m": L.km, "active_kcal": lambda v: L.whole(v, " kcal"),
-               "exercise_min": lambda v: L.whole(v, " " + L("min")), "flights": L.whole}
+        bpm = lambda v: L.n(rnd(v), " " + L("bpm"))
+        mins = lambda v: L.whole(v, " " + L("min"))
+        fmt = {"sleep_min": L.hm, "bedtime_min": lambda v: clock_text(v, EVENING) or "-",
+               "wake_min": lambda v: clock_text(v) or "-", "sleep_hr_avg": bpm, "resting_hr": bpm,
+               "hrv_ms": lambda v: L.n(rnd(v), " ms"), "steps": L.whole, "distance_m": L.km,
+               "active_kcal": lambda v: L.whole(v, " kcal"), "exercise_min": mins, "flights": L.whole,
+               "walking_speed_kmh": lambda v: L.n(rnd(v, 2), " km/h"), "headphone_min": mins}
+        diff_fmt = {"bedtime_min": mins, "wake_min": mins}     # a difference of clock times is minutes
         signed = lambda v, f: "-" if v is None else ("+" if v > 0 else "-" if v < 0 else "") + f(abs(v))
         baseline = [[L("h_measure"), L("h_this_day"), L("h_avg"), L("h_range"), L("h_diff"), L("h_days_lower")]] + [
             [L(f"b_{k}"), f(c["this"]), f(c["avg"]), f"{f(c['min'])} - {f(c['max'])}" if c["min"] is not None else "-",
-             signed(c["diff"], f), f"{c['days_lower']} / {c['days_with_data']}" if c["days_lower"] is not None else "-"]
-            for k, f in fmt.items() for c in [cmp[k]]]
+             signed(c["diff"], diff_fmt.get(k, f)),
+             f"{c['days_lower']} / {c['days_with_data']}" if c["days_lower"] is not None else "-"]
+            for k, f in fmt.items() for c in [cmp[k]] if c["this"] is not None or c["days_with_data"]]
         pct = s["stages_pct"]
         night = [[L("h_measure"), L("h_value")],
                  [L("n_window"), f"{s['start'][11:16]} - {s['end'][11:16]}" if s.get("start") else "-"],
@@ -1298,15 +1634,78 @@ def render_day(facts: dict, series: dict, narrative: dict, out: Path, font=None,
                  [L("n_hr_asleep"), f"{L.n(hr['asleep_avg'])} / {L.n(hr['awake_avg'])} {L('bpm')}"],
                  [L("n_hr_minutes"), L.n(hr["minutes_with_reading"])],
                  [L("n_spo2_resp"), f"{L.n(facts['spo2_pct']['avg'], ' %')} / {L.n(facts['respiratory_rate']['avg'])}"],
-                 [L("n_weight"), L.n(facts["weight_kg"], " kg")]]
+                 [L("n_weight"), L.n(facts["weight_kg"], " kg")],
+                 [L("n_efficiency"), L.n(s.get("efficiency_pct"), " %")]]
+        walk, ear = facts["walking"], facts["headphones"]
+        if any(v is not None for v in walk.values()):
+            night.append([L("n_walking"), " / ".join([L.n(walk["walking_speed_kmh"], " km/h"),
+                                                      L.n(walk["step_length_cm"], " cm"),
+                                                      L.n(walk["double_support_pct"], " %"),
+                                                      L.n(walk["asymmetry_pct"], " %")])])
+        if walk.get("steadiness_pct") is not None:
+            night.append([L("n_steadiness"), L.n(walk["steadiness_pct"], " %")])
+        if ear["minutes"]:
+            night.append([L("n_headphones"), f"{L.whole(ear['minutes'], ' ' + L('min'))} / {L.n(ear['laeq_db'], ' dB(A)')}"
+                                             f" / {L.n(ear['share_of_weekly_dose_pct'], ' %')}"])
+        for a in facts.get("audiograms") or []:
+            night.append([L("n_audiogram"), audiogram_text(a, L)])
         workouts = [[L("h_time"), L("h_type"), L("h_minutes"), L("h_distance"), L("h_avg_hr"), L("h_max_hr")]] + [
             [w["start"][11:16], L.value("type", w["type"]), L.n(rnd(w["minutes"])), L.km(w["distance_m"]),
              L.n(w["heart_rate"]["avg"]), L.n(w["heart_rate"]["max"])] for w in facts["workouts"]]
         build_pdf(out, L("day_title", date=L.date(day, "long_day")) + (f" {L('in_progress')}" if facts["partial_day"] else ""),
                   L("day_subtitle", name=facts["person"]["name"], start=(day - dt.timedelta(days=BASELINE_DAYS)).isoformat(),
                     end=(day - dt.timedelta(days=1)).isoformat()),
-                  tiles, narrative, charts, [(L("tb_baseline"), baseline), (L("tb_night"), night), (L("tb_workouts"), workouts)],
+                  tiles, narrative, charts, [(L("tb_baseline"), baseline), (L("tb_night"), night), (L("tb_workouts"), workouts)]
+                  + [(L("tb_audiogram", date=a["date"]), audiogram_rows(a, L)) for a in facts.get("audiograms") or [] if a.get("points")],
                   notes or facts["data_notes"], L, fonts)
+
+
+def audiogram_text(a: dict, L: Labels) -> str:
+    """'left <= 5 / right 10 dB HL (AirPods test, 2025-09-26)': a pure-tone average per ear; '<=' when a threshold
+    was at the quietest level the test could play, so the real average is that or better."""
+    ear = lambda e: ("<= " if a[e]["values_at_test_limit"] else "") + L.n(a[e]["pta_db_hl"]) if a[e]["pta_db_hl"] is not None else "-"
+    return L("audiogram_pta", left=ear("left"), right=ear("right"), date=a["date"][:10])
+
+
+def wellness_rows(facts: dict, L: Labels) -> list[list]:
+    """The period's wellness details: this period, the previous one and the change."""
+    w, p, ch = facts["wellness"]["this"], facts["wellness"]["previous"], facts["wellness"]["change"]
+    signed = lambda v, f: "-" if v is None else ("+" if v > 0 else "-" if v < 0 else "") + f(abs(v))
+    mins = lambda v: L.whole(v, " " + L("min"))
+    spread = lambda t, k: f"{t[k + '_avg'] or '-'}" + (f" (± {L.whole(t[k + '_spread_min'])} {L('min')})"
+                                                      if t[k + "_spread_min"] is not None else "")
+    st_, sp = w["sleep_timing"], p["sleep_timing"]
+    rows = [[L("h_measure"), L("h_this_period"), L("h_previous"), L("h_change")],
+            [L("wl_bedtime"), spread(st_, "bedtime"), spread(sp, "bedtime"), signed(ch["bedtime_min"], mins)],
+            [L("wl_wake"), spread(st_, "wake"), spread(sp, "wake"), signed(ch["wake_min"], mins)],
+            [L("wl_late_short"), f"{st_['nights_starting_after_midnight']} / {st_['nights_under_7h']} / {st_['nights']}",
+             f"{sp['nights_starting_after_midnight']} / {sp['nights_under_7h']} / {sp['nights']}", ""],
+            [L("wl_efficiency"), L.n(st_["efficiency_pct_avg"], " %"), L.n(sp["efficiency_pct_avg"], " %"), ""],
+            [L("wl_jetlag"), signed(st_["weekend_minus_weekday_midpoint_min"], mins),
+             signed(sp["weekend_minus_weekday_midpoint_min"], mins), ""]]
+    hr, hp = w["heart_rate_asleep"], p["heart_rate_asleep"]
+    hr_text = lambda h: (f"{L.n(h['avg'])} ({L.n(h['lowest_night'])} - {L.n(h['highest_night'])})" if h["avg"] is not None
+                         else "-")
+    rows.append([f"{L('wl_hr_asleep')} ({L('bpm')})", hr_text(hr), hr_text(hp), signed(ch["heart_rate_asleep"], L.n)])
+    act, ap = w["activity_guideline"], p["activity_guideline"]
+    rows.append([L("wl_activity", target=WHO_WEEKLY_MIN, source=L(f"wl_src_{act['source']}")),
+                 mins(act["per_week"]), mins(ap["per_week"]), signed(ch["activity_minutes_per_week"], mins)])
+    for key, unit, digits in (("walking_speed_kmh", " km/h", 2), ("step_length_cm", " cm", 1),
+                              ("double_support_pct", " %", 1), ("asymmetry_pct", " %", 1)):
+        if w["walking"][key]["days_with_data"] or p["walking"][key]["days_with_data"]:
+            f = lambda v: L.n(rnd(v, digits), unit)
+            rows.append([L(f"wl_{key}"), f(w["walking"][key]["avg"]), f(p["walking"][key]["avg"]), signed(ch[key], f)])
+    last = lambda x: f"{L.n(x['value'], ' %')} ({x['date']})" if x else "-"
+    if w["walking"]["steadiness_pct_last"] or p["walking"]["steadiness_pct_last"]:
+        rows.append([L("wl_steadiness"), last(w["walking"]["steadiness_pct_last"]), last(p["walking"]["steadiness_pct_last"]), ""])
+    if w["vo2_max"]["days_with_data"] or p["vo2_max"]["days_with_data"]:
+        rows.append([L("wl_vo2"), L.n(w["vo2_max"]["avg"]), L.n(p["vo2_max"]["avg"]), ""])
+    ear = lambda h: (f"{L.whole(h['minutes'], ' ' + L('min'))} / {L.n(h['laeq_db'], ' dB(A)')} / {L.n(h['weekly_dose_pct'], ' %')}"
+                     if h["days"] else "-")
+    rows.append([L("wl_headphones"), ear(w["headphones"]), ear(p["headphones"]), ""])
+    for a in facts.get("audiograms") or []:
+        rows.append([L("n_audiogram"), audiogram_text(a, L), "", ""])
+    return rows
 
 
 def period_label(facts: dict, L: Labels) -> str:
@@ -1347,7 +1746,10 @@ def render_period(facts: dict, series: dict, narrative: dict, out: Path, font=No
         build_pdf(out, L("period_title", label=period_label(facts, L)) + (f" {L('in_progress')}" if facts["in_progress"] else ""),
                   L("period_subtitle", name=facts["person"]["name"], start=facts["from"], end=facts["to"],
                     pstart=facts["previous_period"]["from"], pend=facts["previous_period"]["to"]),
-                  tiles, narrative, charts, [(L("tb_daily"), daily), (L("tb_workouts"), workouts)],
+                  tiles, narrative, charts,
+                  ([(L("tb_wellness"), wellness_rows(facts, L))] if facts.get("wellness") else [])
+                  + [(L("tb_audiogram", date=a["date"]), audiogram_rows(a, L)) for a in facts.get("audiograms") or [] if a.get("points")]
+                  + [(L("tb_daily"), daily), (L("tb_workouts"), workouts)],
                   notes or facts["data_notes"], L, fonts)
 
 

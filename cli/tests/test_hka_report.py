@@ -82,6 +82,80 @@ class Facts(unittest.TestCase):
         a.week, a.month = None, "2026-12"
         self.assertEqual(R.period_from_args(a)[:2], (dt.date(2026, 12, 1), dt.date(2026, 12, 31)))
 
+    def test_clock_times_wrap_at_the_sleep_day(self):
+        self.assertEqual(R.clock_minutes("2026-11-14T00:15:12.000+07:00", TZ, R.EVENING), 375)   # 6h15 after 18:00
+        self.assertEqual(R.clock_minutes("2026-11-13T23:18:00+07:00", TZ, R.EVENING), 318)
+        self.assertEqual(R.clock_minutes("2026-11-13T22:18:00Z", TZ), 318)                        # 05:18 local
+        self.assertEqual((R.clock_text(375, R.EVENING), R.clock_text(318)), ("00:15", "05:18"))
+
+    def test_headphone_dose_and_energy_mean(self):
+        self.assertAlmostEqual(R.headphone_dose_pct(40 * 3600, 80), 100)
+        self.assertAlmostEqual(R.headphone_dose_pct(4 * 3600, 90), 100.8, places=1)  # 10 dB louder: about a tenth of the time
+        self.assertAlmostEqual(R.energy_mean_db([(60, 70), (60, 70)]), 70)
+        self.assertAlmostEqual(R.energy_mean_db([(60, 60), (60, 80)]), 77.0, places=1)  # the loud half dominates
+        self.assertIsNone(R.energy_mean_db([]))
+
+    def night(self, date: str, start: str, end: str, asleep: float, **extra) -> dict:
+        rec = {k: None for k in R.AGGREGATED}
+        rec.update({"date": date, "sleep_start": start, "sleep_end": end, "sleep_min": asleep,
+                    "bedtime_min": R.clock_minutes(start, TZ, R.EVENING), "wake_min": R.clock_minutes(end, TZ),
+                    "sleep_efficiency_pct": 95.0, "sleep_hr_avg": None, "vo2_max": None, "headphone_min": None,
+                    "headphone_laeq_db": None, "headphone_dose_pct": None, **{k: None for k in R.MOBILITY}})
+        rec.update(extra)
+        return rec
+
+    def test_wellness_sleep_timing_activity_and_listening(self):
+        recs = [self.night("2026-11-12", "2026-11-11T23:00:00+07:00", "2026-11-12T06:00:00+07:00", 400, sleep_hr_avg=60,
+                           walking_speed_kmh=3.8),
+                self.night("2026-11-13", "2026-11-12T23:30:00+07:00", "2026-11-13T06:30:00+07:00", 430, sleep_hr_avg=62,
+                           headphone_min=60, headphone_laeq_db=70, headphone_dose_pct=0.1),
+                self.night("2026-11-14", "2026-11-14T01:00:00+07:00", "2026-11-14T08:00:00+07:00", 410),   # Saturday
+                self.night("2026-11-15", "2026-11-15T00:30:00+07:00", "2026-11-15T07:30:00+07:00", 380,    # Sunday
+                           steadiness_pct=90.0)]
+        w = R.wellness(recs, [{"minutes": 35}])
+        t = w["sleep_timing"]
+        self.assertEqual((t["bedtime_avg"], t["wake_avg"], t["latest_bedtime"]), ("00:00", "07:00", "01:00"))
+        self.assertEqual((t["nights_starting_after_midnight"], t["nights_under_7h"]), (2, 3))
+        self.assertEqual(t["weekend_minus_weekday_midpoint_min"], 90)  # 04:15 vs 02:45
+        self.assertEqual(w["heart_rate_asleep"], {"nights": 2, "avg": 61.0, "lowest_night": 60, "highest_night": 62})
+        self.assertEqual(w["activity_guideline"], {"minutes": 35, "source": "workouts", "per_week": 61,
+                                                   "who_target_per_week": 150})
+        self.assertEqual(w["walking"]["walking_speed_kmh"], {"avg": 3.8, "days_with_data": 1})
+        self.assertEqual(w["walking"]["steadiness_pct_last"], {"date": "2026-11-15", "value": 90.0})
+        self.assertEqual((w["headphones"]["minutes"], w["headphones"]["laeq_db"], w["headphones"]["weekly_dose_pct"]),
+                         (60, 70.0, 0.2))
+        earlier = R.wellness([self.night("2026-11-05", "2026-11-04T23:00:00+07:00", "2026-11-05T06:00:00+07:00", 400)], [])
+        ch = R.wellness_change(w, earlier)
+        self.assertEqual((ch["bedtime_min"], ch["wake_min"], ch["heart_rate_asleep"]), (60, 60, None))
+
+    def test_exercise_minutes_win_when_they_cover_the_period(self):
+        recs = [self.night(f"2026-11-1{i}", "2026-11-10T23:00:00+07:00", "2026-11-11T06:00:00+07:00", 400, exercise_min=20)
+                for i in range(4)]
+        act = R.wellness(recs, [{"minutes": 90}])["activity_guideline"]
+        self.assertEqual((act["source"], act["minutes"], act["per_week"]), ("exercise_minutes", 80, 140))
+
+    def test_audiogram_text_marks_values_at_the_test_limit(self):
+        a = {"date": "2025-09-26 14:53", "left": {"pta_db_hl": 5.0, "values_at_test_limit": 4},
+             "right": {"pta_db_hl": None, "values_at_test_limit": 0}}
+        self.assertEqual(R.audiogram_text(a, R.Labels("en")), "left <= 5 / right - dB HL (2025-09-26)")
+
+    def test_audiogram_thresholds_come_from_the_loinc_displays(self):
+        comp = lambda ear, hz, v, **kw: {"code": {"coding": [
+            {"system": "http://loinc.org", "code": "x", "display": f"Hearing threshold Ear - {ear} --{hz} Hz"}]},
+            "valueQuantity": {"value": v, **({"comparator": kw["cmp"]} if "cmp" in kw else {})},
+            **({"extension": [{"url": "b/StructureDefinition/audiogram-masked", "valueBoolean": kw["masked"]}]}
+               if "masked" in kw else {})}
+        obs = {"component": [comp("right", 1000, 18.09, masked=False), comp("left", 1000, 13.3, cmp="<=", masked=False),
+                             comp("left", 250, 3.7, cmp="<="), comp("right", 250, 7.7, masked=True),
+                             {"code": {"coding": [{"system": "http://loinc.org", "code": "y", "display": "Something else"}]},
+                              "valueQuantity": {"value": 1}}]}
+        pts = R.threshold_points(obs)
+        self.assertEqual([(p["ear"], p["hz"], p["comparator"], p["masked"]) for p in pts],
+                         [("left", 250, "<=", None), ("left", 1000, "<=", False), ("right", 250, None, True),
+                          ("right", 1000, None, False)])
+        rows = R.audiogram_rows({"points": pts}, R.Labels("vi"))
+        self.assertEqual(rows[1:], [["250 Hz", "≤ 3,7", "7,7 (M)"], ["1000 Hz", "≤ 13,3", "18,1"]])
+
     def test_components_are_keyed_by_their_own_code(self):
         obs = {"component": [{"code": {"coding": [{"system": "http://loinc.org", "code": "93831-6"},
                                                   {"system": "x/CodeSystem/healthkit-type", "code": "HKSleep"}]},
@@ -122,26 +196,44 @@ class Render(unittest.TestCase):
         days = []
         for i in range(7):
             d = {k: None for k in R.AGGREGATED}
-            d.update({"date": (dt.date(2026, 11, 9) + dt.timedelta(days=i)).isoformat(), "steps": 3000 + 500 * i,
+            date = dt.date(2026, 11, 9) + dt.timedelta(days=i)
+            start, end = f"{date - dt.timedelta(days=1)}T23:{5 * i:02d}:00+07:00", f"{date}T06:{5 * i:02d}:00+07:00"
+            d.update({"date": date.isoformat(), "steps": 3000 + 500 * i,
                       "distance_m": 2000 + 300 * i, "active_kcal": 50 + i, "resting_hr": 57 + (i % 3),
                       "sleep_min": 360 + i, "deep_min": 70, "core_min": 220, "rem_min": 60 + i, "awake_min": 15,
-                      "weight_kg": None})
+                      "weight_kg": None, "vo2_max": None, "sleep_start": start, "sleep_end": end,
+                      "bedtime_min": R.clock_minutes(start, TZ, R.EVENING), "wake_min": R.clock_minutes(end, TZ),
+                      "sleep_efficiency_pct": 96.0, "sleep_hr_avg": 62 + i % 2, "walking_speed_kmh": 3.8,
+                      "step_length_cm": 60.0, "double_support_pct": 28.5, "asymmetry_pct": 4.0, "steadiness_pct": None,
+                      "headphone_min": 30 if i % 2 else None, "headphone_laeq_db": 64.0 if i % 2 else None,
+                      "headphone_dose_pct": 0.05 if i % 2 else None})
             days.append(d)
         agg = R.aggregate(days, [])
+        well = R.wellness(days, [])
         facts = {"kind": "period", "period": {"kind": "week", "value": "2026-W46"}, "from": "2026-11-09",
                  "to": "2026-11-15", "in_progress": False, "person": {"name": "Alex"},
                  "coverage": {"today_partial": None}, "summary": agg,
                  "previous_period": {"from": "2026-11-02", "to": "2026-11-08"},
                  "change_vs_previous_avg": {k: None for k in ("sleep_min", "resting_hr", "hrv_ms", "steps",
                                                               "distance_m", "active_kcal", "exercise_min")},
-                 "days": days, "workouts": [], "data_notes": ["made-up data"]}
-        series = {"days": days, "workouts": [], "from": dt.date(2026, 11, 9), "to": dt.date(2026, 11, 15)}
+                 "days": days, "workouts": [], "data_notes": ["made-up data"],
+                 "wellness": {"this": well, "previous": well, "change": R.wellness_change(well, well)},
+                 "audiograms": [{"date": "2026-11-12 09:00", "source": "Health",
+                                 "left": {"pta_db_hl": 5.0, "values_at_test_limit": 4},
+                                 "right": {"pta_db_hl": 7.5, "values_at_test_limit": 2},
+                                 "points": [{"ear": ear, "hz": hz, "db_hl": db, "comparator": "<=" if db < 5 else None,
+                                             "masked": ear == "right" and hz == 4000}
+                                            for ear in ("left", "right") for hz, db in ((500, 0), (1000, 5), (4000, 25))]}]}
+        series = {"days": days, "workouts": [], "from": dt.date(2026, 11, 9), "to": dt.date(2026, 11, 15),
+                  "audiograms": facts["audiograms"]}
         narrative = {"language": "vi", "headline": "Tuần thử nghiệm.", "summary": "Dữ liệu giả.",
                      "evaluation": ["Một nhận xét."], "recommendations": ["Một khuyến nghị."]}
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "r.pdf"
             R.render_period(facts, series, narrative, out)
             self.assertTrue(out.read_bytes().startswith(b"%PDF"))
+            charts = R.period_charts(series, Path(tmp), R.Labels("vi"), R.font_files(None, None))
+            self.assertIn(R.Labels("vi")("c_audiogram_caption"), [c for c, _ in charts])
             self.assertEqual(out.stat().st_mode & 0o777, 0o600)
 
 

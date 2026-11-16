@@ -1,6 +1,6 @@
 ---
 name: healthkit-reports
-description: Produce a PDF report from a family member's Apple Health data in the local Medplum - a daily report for one day (heart rate through the day, sleep stages, steps and energy, compared with the previous 28 days), a workout report (duration, distance, pace, heart rate during the workout and its drift, splits when the route has usable times, comparison with recent workouts of the same type) or a period report for a week, month or range (sleep, resting heart rate, HRV, steps, distance, active energy, workouts, against the period before). Use when the user asks for a report, a PDF, a weekly or monthly summary, or a write-up of a run or other workout.
+description: Produce a PDF report from a family member's Apple Health data in the local Medplum - a daily report for one day (heart rate through the day, sleep stages, steps and energy, compared with the previous 28 days), a workout report (duration, distance, pace, heart rate during the workout and its drift, splits when the route has usable times, comparison with recent workouts of the same type) or a period report for a week, month or range (sleep with its timing and regularity, heart rate asleep, resting heart rate, HRV, steps, distance, active energy, workouts against the WHO guideline, walking quality, headphone listening and hearing tests, against the period before). Use when the user asks for a report, a PDF, a weekly or monthly summary, or a write-up of a run or other workout.
 ---
 
 # HealthKit reports (PDF)
@@ -82,7 +82,7 @@ Rules:
 - **Compare with the person, not the population**: the previous 28 days, the previous period
   (`change_vs_previous_avg`), the same workout type over the previous 8 weeks
   (`same_type_previous_8_weeks`, `efficiency_m_per_beat`). Population figures only where they are
-  standard (WHO: 150 minutes of moderate activity per week).
+  standard (WHO: 150 minutes of moderate activity per week; adults need at least 7 hours of sleep).
 - **Read the data notes.** They flag what changes the meaning of a number: merged duplicate workouts,
   a source that writes the same basal energy every day (an estimate, not a measurement), thin coverage,
   partial days. Carry what matters into the narrative.
@@ -90,6 +90,27 @@ Rules:
   Active and basal energy are separate. A workout's heart rate is the one-minute series cut to the
   workout: with few readings (`readings`), say the shape is approximate. Without usable route times
   there are no splits and no in-workout pace; only the average pace from duration and distance.
+- **Wellness details** (period `wellness`, day `sleep`, `walking`, `headphones`, `audiograms`):
+  - *Sleep timing* often explains short sleep better than the total does: a late `bedtime_avg`, a wide
+    `bedtime_spread_min` (over about 60 min is irregular), `nights_starting_after_midnight`, and
+    `weekend_minus_weekday_midpoint_min` (social jetlag: the weekend body clock shifted by that much). Wake
+    time that stays fixed while bedtime moves means each late night costs sleep directly.
+  - *Heart rate asleep* (`heart_rate_asleep`, day `heart_rate.asleep_avg`) is the recovery signal when there
+    is no HRV (no Apple Watch). A few bpm above the person's usual after short or late nights is common;
+    rising for many nights is worth rest and, if unwell, a clinician.
+  - *Activity guideline:* `activity_guideline.per_week` against 150; say which `source` it came from (exercise
+    minutes or recorded workouts). Zero workouts with low steps means the guideline is likely missed.
+  - *Walking quality* comes from the iPhone in a pocket: walking speed, step length, double support (share of
+    each stride on both feet; higher is more cautious walking), asymmetry (left and right steps differ) and
+    walking steadiness (Apple's weekly fall-risk estimate). They change slowly: mention them when they
+    move clearly against the previous period or the 28 days, not for small week-to-week noise; never
+    diagnose from them.
+  - *Headphones:* listening time, average level (dB(A)) and `weekly_dose_pct` of the WHO-based safe limit
+    (100 % = 80 dB(A) for 40 h). Under 100 % is within the limit. A hearing test in the period appears in
+    `audiograms` as a pure-tone average per ear; `values_at_test_limit` > 0 means the real average is at or
+    better than the figure (the test could not play quieter), so never call it exact.
+  - Skip a section the person has no data for (no VO2 max, no steadiness reading) rather than reporting
+    its absence at length; one line in the data notes is enough.
 - **Recommendations are specific and doable**: a bedtime, a step target, a heart-rate cap for easy
   runs, a number of sessions. No diagnosis, no supplements or medication; for worrying patterns
   (resting heart rate rising for days, very short sleep for a week) suggest rest and, if unwell, a
@@ -106,6 +127,9 @@ What to look at:
 | day `compared_with_previous_28_days` | each measure: this day, average, range, difference, `days_lower` of `days_with_data` |
 | period `summary`, `change_vs_previous_avg` | averages and totals, and their change against the period before |
 | period `coverage.by_metric`, `best_and_worst` | how many days each metric has; the extreme days |
+| period `wellness.this` / `.previous` / `.change` | sleep timing (bedtime, wake, spread, late and short nights, efficiency, social jetlag), heart rate asleep, activity minutes per week vs WHO 150, walking quality, VO2 max, headphones |
+| `audiograms` (day and period) | hearing tests in the range: pure-tone average per ear, how many thresholds were at the test's limit, and every threshold in `points` (ear, Hz, dB HL, comparator, masked); the PDF draws the standard audiogram chart and a threshold table. Look at the shape too: a dip around 3-6 kHz in both ears is the typical early sign of noise exposure even when the average is normal |
+| day `sleep.bedtime` / `wake` / `efficiency_pct`, `walking`, `headphones` | the night's timing, the day's walking measures and listening; `compared_with_previous_28_days` also has bedtime, wake time, heart rate asleep, walking speed and headphone minutes (bedtime in minutes after 18:00) |
 | workout `summary`, `heart_rate_from_minute_series` | duration (and elapsed), distance, pace, energy; average, max, first- vs second-half heart rate (`drift`) |
 | workout `heart_rate_by_10_min`, `splits_km` | how effort built up; per-km pace and heart rate (only with usable route times) |
 | workout `that_day`, `efficiency_m_per_beat` | sleep and resting heart rate that day; metres per heartbeat against the median of recent workouts of the type |
