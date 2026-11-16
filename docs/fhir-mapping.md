@@ -1,4 +1,4 @@
-# FHIR mapping (version 0.5.0)
+# FHIR mapping (version 0.6.0)
 
 How the processor's day folders (`users/<user>/days/YYYY/YYYY-MM-DD/`) become FHIR R4 resources. This is
 the specification that `hka fhir map` implements (`cli/hka/fhir.py`). FHIR is a view: it can be rebuilt
@@ -95,7 +95,7 @@ validator (`tools/fhir-validate`, `@medplum/core` 5.2.17).
 | `CodeSystem`, `ValueSet` | | `url` | The three terminology files, loaded with the data. |
 
 Categories (`http://terminology.hl7.org/CodeSystem/observation-category`): `activity`, `vital-signs`,
-`laboratory` (glucose) and `procedure` (ECG) where they apply; none otherwise. No `meta.profile` is set
+`laboratory` (glucose) and `procedure` (ECG, audiogram) where they apply; none otherwise. No `meta.profile` is set
 in this version; the vital-signs profiles add constraints the mapper does not check yet.
 
 ## Daily Observations
@@ -197,6 +197,45 @@ One Observation per Apple Watch ECG, category `procedure`, coded with the Health
 | average heart rate | LOINC 8867-4 Heart rate | `/min` |
 
 A recording whose parts are incomplete keeps classification and heart rate but no waveform.
+
+## Audiograms
+
+One Observation per audiogram (a hearing test: AirPods Pro's, or one entered from an audiologist's chart),
+category `procedure`, coded LOINC 89015-2 Pure tone air conduction threshold audiometry panel with the
+HealthKit type (`HKDataTypeIdentifierAudiogram`). It has no value of its own; each ear at each frequency
+is a component, in dB HL (`unit` `dB HL`, UCUM code `dB`, LOINC's example unit). Example:
+[`Observation-audiogram.json`](../fhir/examples/Observation-audiogram.json).
+
+| Frequency | Left ear | Right ear |
+|---|---|---|
+| 250 Hz | 91375-6 | 91374-9 |
+| 500 Hz | 89024-4 | 89025-1 |
+| 750 Hz | 91379-8 | 91378-0 |
+| 1000 Hz | 89016-0 | 89017-8 |
+| 1500 Hz | 91373-1 | 91372-3 |
+| 2000 Hz | 89018-6 | 89019-4 |
+| 3000 Hz | 89020-2 | 89021-0 |
+| 4000 Hz | 89022-8 | 89023-6 |
+| 5000 Hz | 91377-2 | 91376-4 |
+| 6000 Hz | 89026-9 | 89027-7 |
+| 8000 Hz | 89028-5 | 89029-3 |
+
+All are LOINC "Hearing threshold Ear - left|right --<n> Hz" (class AUDIO, checked ACTIVE on 2026-11-16).
+
+- **Which value.** With per-test data (iOS 18.1+, `tests`), only an air-conduction test is used, since the
+  panel is air conduction; a bone-conduction test is not mapped. When one ear at one frequency has both a
+  masked and an unmasked test, the masked threshold is used (the valid one when masking was needed).
+  Without `tests`, the point's `left_db_hl` / `right_db_hl` is used.
+- **Bounds, not measurements.** A test can only play sounds within its clamping range. A threshold at the
+  lower bound means the ear heard the quietest sound the test could play: the real threshold is at or
+  below it, so the Quantity carries `comparator` `<=`. At the upper bound it carries `>=`. AirPods tests
+  of normal hearing are mostly at the lower bound; read them as "at or better than", never as exact.
+- **Masking.** With per-test data, the component has the extension
+  `<base>/StructureDefinition/audiogram-masked` (`valueBoolean`). Without it, masking is unknown and the
+  extension is absent.
+- **Not mapped:** frequencies without a LOINC code (below 250 Hz, 7000 Hz, above 8000 Hz) and
+  bone-conduction tests; they stay in the day folder and count in `unmapped_samples`. An audiogram with
+  no mappable threshold has no Observation.
 
 ## Time series
 
@@ -311,6 +350,9 @@ one, including those that also have LOINC.
   meters capillary blood (41653-7), but HealthKit does not record the specimen.
 - LOINC 80404-7 is SDNN; Apple's `HeartRateVariabilitySDNN` is SDNN, so it fits (garmin-archive rejects it
   because Garmin reports RMSSD).
+- LOINC 89015-2 is the *air conduction* panel. HealthKit audiograms without per-test data (before iOS
+  18.1) do not say the conduction; AirPods tests and charts entered by hand are air conduction, so they are
+  mapped to it. The hearing-threshold codes themselves name no method.
 - The heart-rate series pools all sources and uses each sample's value; the individual readings of a
   series sample (`series`) stay in the day folder.
 
@@ -318,7 +360,8 @@ one, including those that also have LOINC.
 
 | Data | Reason |
 |---|---|
-| Heartbeat series, audiograms, State of Mind, GAD-7 and PHQ-9 assessments (`object` records) | Not mapped yet; the day folder has them in full. |
+| Heartbeat series, State of Mind, GAD-7 and PHQ-9 assessments (`object` records) | Not mapped yet; the day folder has them in full. |
+| Audiogram thresholds without a LOINC code, bone-conduction tests | See [Audiograms](#audiograms). |
 | Food correlations | Their nutrient samples are mapped one by one. |
 | Standalone blood-pressure systolic / diastolic samples | They are the correlation's members, mapped there. |
 | Routes without their workout | No workout to attach them to. |

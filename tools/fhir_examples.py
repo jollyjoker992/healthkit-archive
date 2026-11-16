@@ -96,6 +96,23 @@ def records() -> list[dict]:
                  "avg_hr": 66, "sampling_hz": 512, "symptoms": "none", "part": 0, "parts": 1,
                  "voltages_uv": [12.5, 40.25, 310.0, -55.5, 8.0, None, 4.75], "source": WATCH, "device": None,
                  "metadata": {}})
+
+    def test(side: str, db: float, masked: bool = False, lower: float | None = None, conduction: str = "air") -> dict:
+        t = {"side": side, "conduction": conduction, "masked": masked, "sensitivity_db_hl": db}
+        return {**t, "clamping": {"lower_db_hl": lower, "upper_db_hl": None}} if lower is not None else t
+
+    points = [(500, [test("left", 10), test("right", 15)]),
+              (1000, [test("left", 5, lower=5), test("right", 20), test("right", 25, masked=True)]),
+              (4000, [test("left", 30), test("right", 35), test("left", 20, conduction="bone")]),
+              (10000, [test("left", 40), test("right", 45)])]  # no LOINC code: stays in the day folder
+    recs.append({"k": "object", "class": "HKAudiogramSample", "type": F.AUDIOGRAM,
+                 "uuid": "00000000-0000-4000-8000-000000000901", "start": "2026-11-12T13:00:00.000Z",
+                 "end": "2026-11-12T13:06:00.000Z", "source": PHONE, "device": {"model": "AirPods Pro"},
+                 "metadata": {"HKAlgorithmVersion": 1},
+                 "data": {"sensitivity_points": [
+                     {"frequency_hz": hz, "left_db_hl": next(t["sensitivity_db_hl"] for t in ts if t["side"] == "left"),
+                      "right_db_hl": next(t["sensitivity_db_hl"] for t in ts if t["side"] == "right"), "tests": ts}
+                     for hz, ts in points]}})
     return recs
 
 
@@ -118,6 +135,7 @@ PICK = {
     "Observation-workout": "00000000-0000-4000-8000-000000000701",
     "DocumentReference-workout-route": "route/00000000-0000-4000-8000-000000000701",
     "Observation-ecg": "00000000-0000-4000-8000-000000000801",
+    "Observation-audiogram": "00000000-0000-4000-8000-000000000901",
 }
 LITERAL = {"Patient": "Patient/example", "Device": "Device/example",
            "DocumentReference": "DocumentReference/workout-route"}

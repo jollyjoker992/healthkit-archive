@@ -2,7 +2,7 @@
  "resourceType": "CodeSystem",
  "id": "healthkit-type",
  "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/healthkit-type",
- "version": "0.5.0",
+ "version": "0.6.0",
  "name": "HealthKitType",
  "title": "Apple HealthKit type identifiers",
  "status": "draft",
@@ -2793,7 +2793,7 @@
     },
     {
      "code": "mapping",
-     "valueString": "Not mapped to FHIR; kept in the day folder."
+     "valueString": "One Observation per audiogram, category procedure: LOINC 89015-2 air-conduction panel with one hearing-threshold component per ear and frequency (250-8000 Hz) in dB HL; comparator <= or >= where the value is at the edge of the test's range."
     }
    ]
   },

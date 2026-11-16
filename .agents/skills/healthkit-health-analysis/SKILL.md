@@ -110,10 +110,12 @@ every Observation also has its HealthKit type in
 | Sleep | `93832-4`, `effectivePeriod` = first to last record | daily (by morning) | `min` asleep; components `93831-6` deep, `93830-8` light (Apple "core"), `93829-0` REM, `93828-2` awake, `hka|sleep-in-bed`, `hka|sleep-unspecified` |
 | Workouts | `55411-3` Exercise duration, one per workout | per workout | `min`; components `73985-4` type (text), `55425-3` avg HR, `55426-1` max HR, `55424-6` active kcal, `hka|workout-distance` (m); route via `derivedFrom` |
 | ECG | `healthkit-type|HKDataTypeIdentifierElectrocardiogram` | reading | components `hka|ecg-classification` (text), `hka|ecg-lead-i` (µV, `valueSampledData`), `8867-4` average HR |
+| Audiogram (hearing test) | `89015-2`, one per test | reading | components per ear and frequency (e.g. `89016-0` left / `89017-8` right at 1000 Hz), `dB HL`; `comparator` `<=` means the ear heard the quietest sound the test could play (read as "at or better than", not exact); extension `audiogram-masked` |
 | Anything else (water, nutrients, mindful minutes, ...) | `healthkit-type|<Apple identifier>` | reading | unit of the sample; category values in `valueCodeableConcept.text` |
 
-Not in Medplum (kept only in the day folders): heartbeat series, audiograms, State of Mind, GAD-7 /
-PHQ-9, the per-interval sleep timeline, workout events. Say so if asked.
+Not in Medplum (kept only in the day folders): heartbeat series, State of Mind, GAD-7 /
+PHQ-9, the per-interval sleep timeline, workout events, audiogram frequencies without a LOINC code
+(below 250 Hz, 7000 Hz, above 8000 Hz) and bone-conduction tests. Say so if asked.
 
 ## 5. Query recipes (tested)
 

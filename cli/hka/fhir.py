@@ -33,7 +33,7 @@ from . import days as D
 from .build import read_lines
 from .store import Store, atomic_write, instant, read_json, write_json
 
-MAPPING_VERSION = "0.5.0"
+MAPPING_VERSION = "0.6.0"
 DEFAULT_BASE = "https://github.com/jollyjoker992/healthkit-archive/fhir"
 UCUM = "http://unitsofmeasure.org"
 LOINC_SYSTEM = "http://loinc.org"
@@ -74,7 +74,26 @@ LOINC = {
     "55425-3": ("Heart rate unspecified time mean by Pedometer", "/min"),
     "55426-1": ("Heart rate unspecified time maximum by Pedometer", "/min"),
     "55424-6": ("Calories burned in unspecified time Pedometer", "kcal"),
+    # Audiometry: checked against the NLM API and tx.fhir.org on 2026-11-16 (all ACTIVE, example unit dB).
+    "89015-2": ("Pure tone air conduction threshold audiometry panel", None),
 }
+
+# Hearing threshold per (frequency in Hz, ear) -> LOINC; the panel 89015-2 says the test is air conduction.
+HEARING_THRESHOLD = {
+    (250, "left"): "91375-6", (250, "right"): "91374-9",
+    (500, "left"): "89024-4", (500, "right"): "89025-1",
+    (750, "left"): "91379-8", (750, "right"): "91378-0",
+    (1000, "left"): "89016-0", (1000, "right"): "89017-8",
+    (1500, "left"): "91373-1", (1500, "right"): "91372-3",
+    (2000, "left"): "89018-6", (2000, "right"): "89019-4",
+    (3000, "left"): "89020-2", (3000, "right"): "89021-0",
+    (4000, "left"): "89022-8", (4000, "right"): "89023-6",
+    (5000, "left"): "91377-2", (5000, "right"): "91376-4",
+    (6000, "left"): "89026-9", (6000, "right"): "89027-7",
+    (8000, "left"): "89028-5", (8000, "right"): "89029-3",
+}
+LOINC.update({code: (f"Hearing threshold Ear - {side} --{hz} Hz", "dB") for (hz, side), code in HEARING_THRESHOLD.items()})
+AUDIOGRAM = "HKDataTypeIdentifierAudiogram"
 
 class Metric(NamedTuple):
     group: str
@@ -331,7 +350,8 @@ class Mapper:
         self.sleep()
         self.workouts()
         self.ecg()
-        keys = [f"{r['resourceType']}|{r['identifier'][0]['value']}" for r in self.resources]
+        self.audiograms()
+        keys =[f"{r['resourceType']}|{r['identifier'][0]['value']}" for r in self.resources]
         if len(keys) != len(set(keys)):
             raise MappingError("two resources with the same identifier")
         return self.resources
@@ -548,6 +568,68 @@ class Mapper:
             self.observation(uuid, self.code([], first.get("type")), effective, category="procedure", components=comps,
                              device=self.device(first))
 
+    def audiograms(self) -> None:
+        """One Observation per audiogram: the air-conduction panel with a threshold per ear and frequency."""
+        for r in self.files.get(f"{AUDIOGRAM}.ndjson", []):
+            points = (r.get("data") or {}).get("sensitivity_points") if isinstance(r.get("data"), dict) else None
+            if r.get("k") != "object" or not isinstance(r.get("uuid"), str) or not isinstance(points, list):
+                continue
+            try:
+                effective = self.period(r)
+            except MappingError:
+                self.unmapped += 1
+                continue
+            comps = []
+            for p in sorted((p for p in points if isinstance(p, dict)), key=lambda p: p.get("frequency_hz") or 0):
+                for side in ("left", "right"):
+                    comp = self.hearing_threshold(p, side)
+                    if comp:
+                        comps.append(comp)
+            if comps:
+                self.observation(r["uuid"], self.code(["89015-2"], AUDIOGRAM), effective, category="procedure",
+                                 components=comps, device=self.device(r))
+            else:
+                self.unmapped += 1
+
+    def hearing_threshold(self, point: dict, side: str) -> dict | None:
+        """The component for one ear at one frequency, or None when there is nothing correct to say.
+
+        With per-test data (iOS 18.1+) only an air-conduction test counts (the panel is air conduction); when a
+        frequency has a masked and an unmasked test, the masked threshold is the valid one. Without tests, the
+        point's `<side>_db_hl` is used (HealthKit does not say the conduction; see the mapping document). A value
+        at the edge of the test's clamping range is a bound, not a measurement: comparator <= or >=.
+        """
+        hz = point.get("frequency_hz")
+        tests = point.get("tests")
+        if isinstance(tests, list) and tests:
+            air = [t for t in tests if isinstance(t, dict) and t.get("side") == side and t.get("conduction") == "air"
+                   and isinstance(t.get("sensitivity_db_hl"), (int, float))]
+            others = [t for t in tests if isinstance(t, dict) and t.get("side") == side and t not in air]
+            self.unmapped += len(others)
+            if not air:
+                return None
+            test = max(air, key=lambda t: t.get("masked") is True)
+            value, masked, clamp = test["sensitivity_db_hl"], test.get("masked") is True, test.get("clamping")
+        else:
+            value, masked, clamp = point.get(f"{side}_db_hl"), None, None
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return None
+        code = HEARING_THRESHOLD.get((hz, side))
+        if code is None:
+            self.unmapped += 1  # no LOINC code for this frequency; kept in the day folder
+            return None
+        q = {"value": round(value, 2), "unit": "dB HL", "system": UCUM, "code": "dB"}
+        clamp = clamp if isinstance(clamp, dict) else {}
+        lower, upper = clamp.get("lower_db_hl"), clamp.get("upper_db_hl")
+        if isinstance(lower, (int, float)) and value <= lower:
+            q["comparator"] = "<="  # the test could not go quieter: the real threshold is at or below this
+        elif isinstance(upper, (int, float)) and value >= upper:
+            q["comparator"] = ">="  # the test could not go louder: the real threshold is at or above this
+        comp = {"code": self.code([code]), "valueQuantity": q}
+        if masked is not None:
+            comp["extension"] = [{"url": f"{self.base}/StructureDefinition/audiogram-masked", "valueBoolean": masked}]
+        return comp
+
 
 def fmt(x: float, digits: int) -> str:
     """Fixed-point decimal without trailing zeros (never exponent notation)."""
@@ -599,9 +681,8 @@ HK_DISPLAY = {
     "HKScoredAssessmentTypeIdentifierPHQ9": "PHQ-9 depression assessment",
     "HKQuantityTypeIdentifierHeartRateVariabilityRMSSD": "Heart rate variability (RMSSD)",
 }
-# Sent as `object` records (spec/records.md); kept in the day folders, not mapped.
-OBJECT_TYPES = ("HKDataTypeIdentifierAudiogram", "HKDataTypeStateOfMind", "HKScoredAssessmentTypeIdentifierGAD7",
-                "HKScoredAssessmentTypeIdentifierPHQ9")
+# Sent as `object` records (spec/records.md); kept in the day folders, not mapped (audiograms are, see Mapper).
+OBJECT_TYPES = ("HKDataTypeStateOfMind", "HKScoredAssessmentTypeIdentifierGAD7", "HKScoredAssessmentTypeIdentifierPHQ9")
 HK_PREFIXES = (("HKQuantityTypeIdentifier", "quantity"), ("HKCategoryTypeIdentifier", "category"),
                ("HKCorrelationTypeIdentifier", "correlation"), ("HKDataTypeIdentifier", "data"),
                ("HKDataType", "data"), ("HKScoredAssessmentTypeIdentifier", "data"),
@@ -657,6 +738,10 @@ def hk_mapping(t: str) -> str:
     if t == "HKDataTypeIdentifierElectrocardiogram":
         return ("One Observation per recording, category procedure: hka-metrics ecg-classification (text), "
                 "ecg-lead-i (valueSampledData, uV) and LOINC 8867-4 average heart rate.")
+    if t == AUDIOGRAM:
+        return ("One Observation per audiogram, category procedure: LOINC 89015-2 air-conduction panel with one "
+                "hearing-threshold component per ear and frequency (250-8000 Hz) in dB HL; comparator <= or >= where "
+                "the value is at the edge of the test's range.")
     if t in ("HKCorrelationTypeIdentifierFood", "HKDataTypeIdentifierHeartbeatSeries") + OBJECT_TYPES:
         return "Not mapped to FHIR; kept in the day folder."
     if hk_kind(t) == "quantity":

@@ -284,6 +284,58 @@ class ReviewFixes(Ready):
         ecg = self.resources()["E"]
         self.assertFalse(any("valueSampledData" in c for c in ecg.get("component", [])))
 
+    def audiogram(self, uuid: str, points: list[dict]) -> dict:
+        return {"k": "object", "class": "HKAudiogramSample", "type": F.AUDIOGRAM, "uuid": uuid,
+                "start": "2026-11-12T09:00:00.000Z", "end": "2026-11-12T09:06:00.000Z",
+                "source": {"bundle_id": "com.apple.Health", "name": "Health"}, "device": {"model": "AirPods Pro"},
+                "metadata": {}, "data": {"sensitivity_points": points}}
+
+    def thresholds(self, obs: dict) -> dict[str, dict]:
+        return {c["code"]["coding"][0]["code"]: c for c in obs["component"]}
+
+    def test_audiogram_maps_air_thresholds_with_bounds_and_masking(self):
+        t = lambda side, db, **kw: {"side": side, "conduction": kw.get("conduction", "air"), "masked": kw.get("masked", False),
+                                    "sensitivity_db_hl": db, **({"clamping": kw["clamp"]} if "clamp" in kw else {})}
+        rec = self.audiogram("AUD-1", [
+            {"frequency_hz": 1000, "left_db_hl": -5, "right_db_hl": 30, "tests": [
+                t("left", -5, clamp={"lower_db_hl": -5, "upper_db_hl": None}),
+                t("right", 25), t("right", 30, masked=True)]},
+            {"frequency_hz": 8000, "left_db_hl": 90, "right_db_hl": 20, "tests": [
+                t("left", 90, clamp={"lower_db_hl": -10, "upper_db_hl": 90}), t("right", 20),
+                t("right", 15, conduction="bone")]},
+            {"frequency_hz": 125, "left_db_hl": 10, "right_db_hl": 10, "tests": [t("left", 10), t("right", 10)]}])
+        self.sync([rec])
+        report = F.map_user(self.store, self.user, BASE)
+        obs = self.resources()["AUD-1"]
+        self.assertEqual([c["code"] for c in obs["code"]["coding"]], ["89015-2", F.AUDIOGRAM])
+        self.assertEqual(obs["category"][0]["coding"][0]["code"], "procedure")
+        comps = self.thresholds(obs)
+        self.assertEqual(sorted(comps), sorted(["89016-0", "89017-8", "89028-5", "89029-3"]))
+        left_1k = comps["89016-0"]["valueQuantity"]
+        self.assertEqual((left_1k["value"], left_1k["comparator"], left_1k["code"]), (-5, "<=", "dB"))
+        self.assertEqual(comps["89028-5"]["valueQuantity"]["comparator"], ">=")
+        self.assertNotIn("comparator", comps["89029-3"]["valueQuantity"])
+        right_1k = comps["89017-8"]
+        self.assertEqual(right_1k["valueQuantity"]["value"], 30)  # the masked threshold wins
+        self.assertTrue(right_1k["extension"][0]["valueBoolean"])
+        self.assertEqual(comps["89029-3"]["valueQuantity"]["value"], 20)  # the bone test is not air conduction
+        self.assertEqual(report["unmapped_samples"], 3)  # one bone test, two 125 Hz thresholds
+
+    def test_audiogram_without_tests_uses_the_point_values(self):
+        rec = self.audiogram("AUD-2", [{"frequency_hz": 500, "left_db_hl": 15, "right_db_hl": None}])
+        self.sync([rec])
+        F.map_user(self.store, self.user, BASE)
+        comps = self.thresholds(self.resources()["AUD-2"])
+        self.assertEqual(list(comps), ["89024-4"])
+        self.assertNotIn("extension", comps["89024-4"])  # masking unknown, so not stated
+
+    def test_audiogram_with_nothing_mappable_has_no_observation(self):
+        rec = self.audiogram("AUD-3", [{"frequency_hz": 125, "left_db_hl": 10, "right_db_hl": 10}])
+        self.sync([rec])
+        report = F.map_user(self.store, self.user, BASE)
+        self.assertNotIn("AUD-3", self.resources())
+        self.assertEqual(report["unmapped_samples"], 3)  # two thresholds without a code, then the empty audiogram
+
     def test_a_deleted_day_is_removed_from_the_server(self):
         rec = sample("HKQuantityTypeIdentifierRestingHeartRate", "2026-11-12T03:00:00.000Z", value=55, unit="count/min")
         self.sync([rec])

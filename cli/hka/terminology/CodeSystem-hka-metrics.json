@@ -2,7 +2,7 @@
  "resourceType": "CodeSystem",
  "id": "hka-metrics",
  "url": "https://github.com/jollyjoker992/healthkit-archive/fhir/CodeSystem/hka-metrics",
- "version": "0.5.0",
+ "version": "0.6.0",
  "name": "HkaMetrics",
  "title": "HealthKit values without a standard code",
  "status": "draft",
