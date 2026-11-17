@@ -31,7 +31,9 @@ hka card --qr                 # members scan this in the app and compare the fin
 hka init --recovery --out /Volumes/USB/hka-recovery --name Recovery   # offline second recipient
 hka pull                      # new devices are listed with their fingerprint
 hka confirm d_…               # after comparing with the app's screen
-hka run                       # pull + build; schedule this
+hka run                       # pull + build (+ backup when a cloud target is set); schedule this
+hka backup                    # age-encrypted final days to AWS S3 / R2 / Google Drive (docs/backup.md)
+hka restore --from r2 --out DIR
 hka status [--json]
 hka verify                    # re-check signatures, chain and hashes of everything stored
 hka export --user u_… --out mom.zip [--from 2026-11-01 --to 2026-11-30]
@@ -54,11 +56,14 @@ data/
     manifest.json                      day status, file hashes, archives, day-rule version
     index.sqlite                       uuid -> day/file, tombstones, census (rebuildable)
     days/YYYY/YYYY-MM-DD/<HealthKit type>.ndjson, summary.json, _day.json
-    archives/YYYY/YYYY-MM-DD.tar.gz    reproducible archive of a final day
+    archives/YYYY/YYYY-MM-DD.tar.gz    reproducible archive of a final day (no change for
+                                       HKA_SETTLE_DAYS, default 7; only these are backed up)
+  backup/state.json, rclone.conf       what each cloud target holds (`hka backup`)
 ```
 
 `inbox/` is the immutable, encrypted copy: back it up anywhere. `users/` is derived from it
-and holds plaintext health data.
+and holds plaintext health data; `hka backup` uploads its final days only age-encrypted to this
+processor's key (and `HKA_BACKUP_RECIPIENTS`), see [docs/backup.md](../docs/backup.md).
 
 Records go to the local day they start on, except sleep, which goes to the sleep day it ends in
 (18:00 to 18:00, named after the morning), so a night stays whole across midnight. Archives made before

@@ -14,6 +14,9 @@ normative for the Worker, the CLIs and the app, and `spec/vectors/` must keep pa
 - Devices own their hash chain: never add code that renumbers a seq, takes `prev` from the relay, or
   re-signs a manifest or grant with different bytes.
 - Processors never delete local data because the relay says so.
+- `hka backup` (docs/backup.md) uploads only age ciphertext of the day archives: never add a path that
+  uploads plaintext, and never delete from a backup target. Running it against the real targets
+  sends data to a third party: ask first. Never print `HKA_AWS_*`, `HKA_R2_*`, `HKA_GDRIVE_*`.
 - Deploying the Worker or calling the real relay changes shared state: ask first.
 - Never print or commit `.env`, `.env.test`, `medplum/.env` or any `HKA_FHIR_*` secret. Tests load made-up
   data only into the Medplum test project (`.env.test`), never the real one. `docker compose down -v` in
@@ -53,7 +56,7 @@ Date searches in Medplum must carry the member's UTC offset.
 | Component | Entry points | Tests |
 |---|---|---|
 | Relay | `worker/src/app.ts` (router), `uploads.ts`, `enroll.ts`, `reads.ts`, `admin.ts`, `purge.ts` | `cd worker && npx vitest run` |
-| Processor | `cli/hka/cli.py`, `pull.py` (verification), `build.py` (day folders), `days.py` (day rules, summary), `fhir.py` | `.venv/bin/python -m unittest discover -s cli/tests` |
+| Processor | `cli/hka/cli.py`, `pull.py` (verification), `build.py` (day folders), `days.py` (day rules, summary), `fhir.py`, `backup.py` (cloud copy) | `.venv/bin/python -m unittest discover -s cli/tests` |
 | Admin | `cli/hka_admin/cli.py` | same |
 | App core | `ios/HKACore/Sources/HKACore/` (`SyncEngine.swift` is the `Device` actor) | `cd ios/HKACore && swift test` |
 | App | `ios/App/` | `xcodebuild … -sdk iphonesimulator CODE_SIGN_IDENTITY=- …` |

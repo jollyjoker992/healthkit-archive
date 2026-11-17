@@ -257,7 +257,7 @@ The `inbox/` mirror is ciphertext, so it can be copied to a second remote with r
 2. For each record: assign a day and merge by UUID into that day's type file. A UUID already present is skipped.
 3. `deleted` records are resolved through `index.sqlite` and remove the sample from its day; the tombstone is kept in `_day.json`.
 4. Recompute `summary.json` for touched days; mark them `provisional`.
-5. A day untouched for 7 days becomes `final` and is archived; a late batch reopens it and drops the archive.
+5. A day untouched for 7 days (`HKA_SETTLE_DAYS`) becomes `final` and is archived; a late batch reopens it and drops the archive.
 
 Day rules: local calendar date of the sample start in the batch time zone (or the sample's own time-zone metadata); a workout belongs to the day it starts. Sleep belongs to the *sleep day* it ends in: 18:00 to 18:00 local time, named after the morning it ends on, so a night that starts before midnight stays whole (and sleep ending from 18:00, such as an evening nap, counts toward the next night). The archive records its day-rule version in `manifest.json` (`day_rules`); version 1 put each sleep record on the calendar date it ended, splitting such nights at midnight, and `hka build` moves records filed under it once.
 

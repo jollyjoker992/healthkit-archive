@@ -19,6 +19,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import os
 import sqlite3
 import tarfile
 from collections import defaultdict
@@ -31,10 +32,24 @@ import pyrage
 from hkacommon.encoding import FormatError, is_int, parse_instant, parse_json_object, sha256_hex
 from . import days as D
 from .pull import batch_paths, load_manifest_file
-from .store import Identity, Store, atomic_write, instant, read_json, write_json
+from .store import ConfigError, Identity, Store, atomic_write, instant, read_json, write_json
 
 MAX_PLAINTEXT = 256 * 1024 * 1024
 SETTLE = timedelta(days=7)
+# The app re-sends the last 48 hours every day: a shorter period would finalize days that the next
+# re-send reopens (and re-archives, re-uploads).
+SETTLE_DAYS_RANGE = (3, 365)
+
+
+def settle_period(env: dict | None = None) -> timedelta:
+    """How long a day stays untouched before it becomes final: HKA_SETTLE_DAYS, default 7."""
+    value = (os.environ if env is None else env).get("HKA_SETTLE_DAYS", "").strip()
+    if not value:
+        return SETTLE
+    lo, hi = SETTLE_DAYS_RANGE
+    if not (value.isascii() and value.isdigit()) or not lo <= int(value) <= hi:
+        raise ConfigError(f"HKA_SETTLE_DAYS must be a whole number of days from {lo} to {hi}, not {value!r}")
+    return timedelta(days=int(value))
 MANIFEST_SCHEMA = 1
 NO_IDENTITY_KINDS = {"header", "deleted", "profile", "census"}
 UNDATED = "undated"
@@ -433,14 +448,14 @@ class UserBuild:
         write_json(d / "_day.json", {"day": day, "user_id": self.user_id, "status": "provisional",
                                      "files": file_info, "updated_at": instant(self.now)})
 
-    def finalize(self) -> list[str]:
-        """Mark days untouched for 7 days final and archive them."""
+    def finalize(self, settle: timedelta = SETTLE) -> list[str]:
+        """Mark days untouched for ``settle`` (HKA_SETTLE_DAYS, default 7 days) final and archive them."""
         done = []
         dirty = {d for (d,) in self.db.execute("SELECT day FROM dirty_days")}
         for day, entry in sorted(self.manifest["days"].items()):
             if day in dirty:
                 continue  # refresh failed; finalize only once its files and manifest agree
-            if entry.get("status") != "provisional" or self.now - parse_instant(entry["touched_at"]) < SETTLE:
+            if entry.get("status") != "provisional" or self.now - parse_instant(entry["touched_at"]) < settle:
                 continue
             d = self.day_dir(day)
             if d.is_dir():
@@ -486,7 +501,8 @@ class BuildReport:
     errors: list[str] = field(default_factory=list)
 
 
-def build(store: Store, identity: Identity, now: datetime) -> BuildReport:
+def build(store: Store, identity: Identity, now: datetime, settle: timedelta | None = None) -> BuildReport:
+    settle = settle_period() if settle is None else settle
     store.check_identity(identity)
     report = BuildReport()
     pins = store.pins()
@@ -508,7 +524,7 @@ def build(store: Store, identity: Identity, now: datetime) -> BuildReport:
             report.records_unplaced += unplaced
             for device_id in devices:
                 build_device(store, identity, ub, user_id, device_id, report)
-            report.days_finalized += len(ub.finalize())
+            report.days_finalized += len(ub.finalize(settle))
             ub.save()
             report.errors.extend(ub.refresh_errors)
         except Exception as exc:

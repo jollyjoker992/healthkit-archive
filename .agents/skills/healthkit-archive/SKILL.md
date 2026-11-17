@@ -107,6 +107,9 @@ garmin-archive stack (`garmin-medplum`, port 8103) may run beside it.
 - The processor never deletes local data because the relay says so (purged, no longer listed).
 - Never print or copy `keys/`, `~/.config/hka-admin/admin.pem`, `.env`, `.env.test` or
   `medplum/.env`.
+- Cloud backup ([docs/backup.md](../../../docs/backup.md)): `hka status` shows each target per user
+  (`backup r2: 412/412 final days, up to date`). `hka run` backs up when the owner configured a
+  target; running `hka backup` or `hka restore` yourself sends or fetches data: ask first.
 - Deploying the Worker or changing the relay (invites, retire, purge, D1/R2) changes shared state:
   ask first. `hka-admin users` is read-only; `hka pull`/`run` only download, plus this processor's
   signed receipt that tells the phones what it holds.

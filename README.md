@@ -80,7 +80,9 @@ with Python 3.11 or later.
 4. For each person: `hka-admin invite --name …`, scan it in the app, scan the processor card (and the
    recovery card), then `hka pull` and `hka confirm d_…` after comparing fingerprints.
 5. Optional: start the local Medplum ([medplum/README.md](medplum/README.md)).
-6. Schedule `hka run` (and `hka fhir map && hka fhir load` if you use Medplum).
+6. Optional: an encrypted off-site copy of the day folders on AWS S3, Cloudflare R2 or Google Drive:
+   put the provider's credentials in `.env` ([docs/backup.md](docs/backup.md)).
+7. Schedule `hka run` (and `hka fhir map && hka fhir load` if you use Medplum).
 
 ## Development
 

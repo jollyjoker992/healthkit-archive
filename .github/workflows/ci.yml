@@ -76,6 +76,8 @@ jobs:
           cache: npm
           cache-dependency-path: tools/fhir-validate/package-lock.json
       - run: python -m pip install -e ./cli
+      - name: rclone (backup tests upload to a local folder)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
       - name: FHIR validator (used by the mapping tests)
         working-directory: tools/fhir-validate
         run: npm ci --no-audit --no-fund

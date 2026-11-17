@@ -18,6 +18,7 @@ from hkacommon.client import ApiError, Client
 from hkacommon.documents import ORIGIN_RE, parse_grant, verify_signed
 from hkacommon.encoding import FormatError, b64u_decode, is_name, sha256_hex
 from hkacommon.qr import print_qr
+from . import backup as K
 from . import build as B
 from . import pull as P
 from .store import (EXIT_CONFIG, EXIT_LOCKED, EXIT_OK, EXIT_PARTIAL, ConfigError, Locked, Store, create_identity,
@@ -129,10 +130,69 @@ def cmd_build(args) -> int:
         return run_build(store)
 
 
+def run_backup(store: Store, targets: dict, checked: K.Checked) -> int:
+    r = K.backup(store, targets, now_utc(), checked)
+    for line in r.lines:
+        print(line)
+    for e in r.errors:
+        print(f"ERROR: backup: {e}", file=sys.stderr)
+    return EXIT_PARTIAL if r.errors else EXIT_OK
+
+
+def selected_targets(names: list[str] | None) -> dict:
+    """The configured targets, or only ``names`` (the others are then not even checked)."""
+    if not names:
+        return K.targets_from_env()
+    targets = {n: t for name in names for n, t in K.targets_from_env(only=name).items()}
+    for name in names:
+        if name not in targets:
+            raise ConfigError(f"backup target {name!r} is not configured")
+    return targets
+
+
 def cmd_run(args) -> int:
     store = store_from(args)
+    B.settle_period()  # build needs it: a bad value stops the run before pulling
+    try:  # a bad backup setting must not stop the pull and build: report it now, skip only the backup
+        targets = K.targets_from_env()
+        checked = K.preflight(store) if targets else None
+        backup_error = None
+    except ConfigError as exc:
+        targets, checked, backup_error = {}, None, exc
+        print(f"error: backup disabled for this run: {exc}", file=sys.stderr)
     with store.lock():
-        return max(run_pull(store, args), run_build(store))
+        code = max(run_pull(store, args), run_build(store))
+        if backup_error is not None:
+            print(f"error: no backup made: {backup_error}", file=sys.stderr)
+            return max(code, EXIT_CONFIG)
+        return max(code, run_backup(store, targets, checked)) if targets else code
+
+
+def cmd_backup(args) -> int:
+    store = store_from(args)
+    targets = selected_targets(args.target)
+    if not targets:
+        raise ConfigError("no backup target configured: set the credentials of AWS S3 (HKA_AWS_*), "
+                          "Cloudflare R2 (HKA_R2_*), Google Drive (HKA_GDRIVE_*) or HKA_BACKUP_RCLONE_REMOTE")
+    checked = K.preflight(store)
+    with store.lock():
+        return run_backup(store, targets, checked)
+
+
+def cmd_restore(args) -> int:
+    store = store_from(args)
+    target = K.targets_from_env(only=args.source).get(args.source)
+    if target is None:
+        raise ConfigError(f"backup target {args.source!r} is not configured")
+    # No lock: restore writes only to --out and its own staging folder, so `hka run` keeps working.
+    r = K.restore(store, target, Path(args.out), Path(args.identity) if args.identity else None, args.user)
+    for line in r.lines:
+        print(line)
+    for e in r.errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    if r.lines:
+        print("decrypted health data: handle with care")
+    return EXIT_PARTIAL if r.errors else EXIT_OK
 
 
 def status_data(store: Store) -> dict:
@@ -156,16 +216,33 @@ def status_data(store: Store) -> dict:
     users_dir = store.root / "users"
     for udir in sorted(p for p in users_dir.iterdir() if p.is_dir() and not p.name.startswith(".")) \
             if users_dir.is_dir() else []:
-        manifest = read_json(udir / "manifest.json", {"days": {}})
-        days = manifest.get("days", {})
-        out["users"].append({
-            "user_id": udir.name,
-            "days": len(days),
-            "final": sum(1 for d in days.values() if d.get("status") == "final"),
-            "provisional": sum(1 for d in days.values() if d.get("status") == "provisional"),
-            "range": [min(days), max(days)] if days else None,
-            "census_mismatches": B.census_mismatches(store, udir.name),
-        })
+        try:  # one unreadable user must not hide the others
+            manifest = read_json(udir / "manifest.json", {"days": {}})
+            days = manifest.get("days", {})
+            out["users"].append({
+                "user_id": udir.name,
+                "days": len(days),
+                "final": sum(1 for d in days.values() if d.get("status") == "final"),
+                "provisional": sum(1 for d in days.values() if d.get("status") == "provisional"),
+                "range": [min(days), max(days)] if days else None,
+                "census_mismatches": B.census_mismatches(store, udir.name),
+            })
+        except Exception as exc:
+            out["users"].append({"user_id": udir.name, "error": f"cannot read: {exc!r}", "days": 0, "final": 0,
+                                 "provisional": 0, "range": None, "census_mismatches": []})
+    try:
+        out["settle_days"] = B.settle_period().days
+    except ConfigError as exc:
+        out["settle_days"], out["settle_config_error"] = None, str(exc)
+    try:
+        out["backup_targets"] = sorted(K.targets_from_env())
+    except ConfigError as exc:
+        out["backup_targets"], out["backup_config_error"] = [], str(exc)
+    backup = K.status(store)
+    if isinstance(backup.get("error"), str):
+        out["backup_state_error"], backup = backup["error"], {}
+    for u in out["users"]:
+        u["backup"] = backup.get(u["user_id"], {})
     return out
 
 
@@ -187,9 +264,35 @@ def cmd_status(args) -> int:
               f"seq {d['verified_seq']}/{d['server_max_seq']} last batch {d['last_created_at']} "
               f"(verified {d['last_advanced_at']}) {'; '.join(flags)}")
     for u in data["users"]:
+        if u.get("error"):
+            print(f"  {u['user_id']}: ERROR {u['error']}")
+            continue
         rng = f"{u['range'][0]}..{u['range'][1]}" if u["range"] else "-"
         print(f"  {u['user_id']}: {u['days']} days ({u['final']} final, {u['provisional']} provisional) {rng}; "
               f"{len(u['census_mismatches'])} census mismatches")
+        if "error" in u["backup"]:
+            print(f"    backup: {u['backup']['error']}")
+            continue
+        for name in data["backup_targets"]:
+            b = u["backup"].get(name)
+            if b is None:
+                print(f"    backup {name}: never run")
+                continue
+            print(f"    backup {name}: {b['archives_uploaded']}/{b['archives_final']} final days"
+                  f"{', up to date' if b['up_to_date'] else ''}, checked {b['checked_at']}"
+                  + (f"; {b['unchecked_cold']} file(s) in Glacier not checked" if b.get("unchecked_cold") else "")
+                  + (f"; ERROR {b['error']}" if b["error"] else ""))
+    if data.get("backup_state_error"):
+        print(f"  backup: ERROR {data['backup_state_error']}")
+    if data.get("settle_config_error"):
+        print(f"  {data['settle_config_error']}")
+    else:
+        print(f"  days become final (and are backed up) {data['settle_days']} days after their last change "
+              "(HKA_SETTLE_DAYS)")
+    if data.get("backup_config_error"):
+        print(f"  backup: {data['backup_config_error']}")
+    elif not data["backup_targets"]:
+        print("  backup: no target configured")
     return EXIT_OK
 
 
@@ -346,7 +449,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_confirm)
     sub.add_parser("pull", help="download and verify new batches").set_defaults(func=cmd_pull)
     sub.add_parser("build", help="decrypt verified batches into day folders").set_defaults(func=cmd_build)
-    sub.add_parser("run", help="pull, then build").set_defaults(func=cmd_run)
+    sub.add_parser("run", help="pull, then build, then back up (when a target is configured)").set_defaults(func=cmd_run)
+    p = sub.add_parser("backup", help="upload final days, age-encrypted, to every configured cloud target",
+                       description=K.__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--target", action="append", choices=["aws", "r2", "gdrive", "rclone"],
+                   help="only this target (repeatable)")
+    p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("restore", help="download and decrypt a backup into a new folder")
+    p.add_argument("--from", dest="source", required=True, choices=["aws", "r2", "gdrive", "rclone"])
+    p.add_argument("--out", required=True, help="new or empty folder")
+    p.add_argument("--user", help="one user (default: every user on the target)")
+    p.add_argument("--identity", help="age identity file (default keys/age.txt; e.g. the recovery identity)")
+    p.set_defaults(func=cmd_restore)
     p = sub.add_parser("status", help="devices, gaps, days")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_status)
@@ -395,6 +509,9 @@ def main(argv: list[str] | None = None) -> int:
     except (ConfigError, FormatError, KeyError, json.JSONDecodeError) as exc:
         print(f"error: {exc!r}", file=sys.stderr)
         return EXIT_CONFIG
+    except K.BackupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_PARTIAL
     except ApiError as exc:
         print(f"relay error: {exc}", file=sys.stderr)
         return EXIT_PARTIAL
